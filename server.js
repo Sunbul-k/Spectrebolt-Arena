@@ -172,7 +172,7 @@ class Bot {
     }
 }
 
-// Initializing the Bot Roster
+// Initializing the Bot Roster (commented out bots are future bots)
 bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 1.5, 650);
 //bots['bot_rob'] = new Bot('bot_rob', 'Rob', '#4A90E2', 6.0, 700); 
 //bots['bot_eliminator'] = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 9.0, 700);
@@ -198,7 +198,7 @@ io.on('connection', socket => {
 
     socket.on('update', data => {
       const p = players[socket.id];
-      if (p && !p.isSpectating){
+      if (p){
         p.x = data.x; 
         p.y = data.y;
         p.stamina = data.stamina;
@@ -218,6 +218,15 @@ io.on('connection', socket => {
 
 /* ================= GAME LOOP ================= */
 setInterval(() => {
+    const playerArray = Object.values(players);
+    if (playerArray.length > 0) {
+        const anyAlive = playerArray.some(p => !p.isSpectating);
+        if (!anyAlive && matchTimer > 0) {
+            console.log("All players are ghosts. Ending match early...");
+            matchTimer = 0;
+        }
+    }
+
     if (matchTimer > 0) matchTimer = Math.max(0, matchTimer - (TICK_RATE / 1000));
     else if (matchTimer === 0) { matchTimer = -1; setTimeout(resetMatch, 10000); }
 

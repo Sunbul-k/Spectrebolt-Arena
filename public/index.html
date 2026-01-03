@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SpectreBolt Arena</title>
     <link rel="favicon" type="image/png" href="download.png">
     <style>
@@ -180,20 +180,30 @@
         let fireInterval = null;
 
         
-        function requestFullScreen() {
+        async function requestFullScreen() {
             const el = document.documentElement;
-            const requestMethod = el.requestFullScreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullScreen;
-            if (requestMethod) requestMethod.call(el);
-            
-            
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(e => console.log("Orientation lock failed"));
+            try {
+                if (el.requestFullscreen) {
+                    await el.requestFullscreen();
+                } else if (el.webkitRequestFullscreen) {
+                    await el.webkitRequestFullscreen();
+                }
+
+        
+                if (screen.orientation && screen.orientation.lock) {
+                    await screen.orientation.lock('landscape');
+                }
+            } catch (err) {
+                console.log("Orientation/Fullscreen error: ", err);
             }
         }
 
         window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            setTimeout(() => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                window.scrollTo(0, 0);
+            }, 100);
         });
         window.dispatchEvent(new Event('resize'));
         
@@ -278,7 +288,7 @@
         document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
         document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });
 
-        // Networking & Stamina Fix
+        // Networking & Stamina
         socket.on('init', d => { 
             myId = d.id; mapSize = d.mapSize; walls = d.walls; 
             if(players[myId]) { camX = players[myId].x; camY = players[myId].y; }
@@ -308,10 +318,10 @@
         // Game Loop
         setInterval(() => {
             const me = players[myId];
-            if (!me || matchTimer <= 0 || me.isSpectating) return;
+            if (!me || matchTimer <= 0) return;
 
             const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting;
-            let speed = (isSprinting && me.stamina > 5) ? 9.2 : 5.8;
+            let speed = me.isSpectating ? 8.0 : ((isSprinting && me.stamina > 5) ? 9.2 : 5.8);
             let dx = 0, dy = 0;
 
             if (keys['KeyW'] || keys['ArrowUp']) dy -= speed;
@@ -322,10 +332,15 @@
             if (joy.active) { dx = joy.x * speed; dy = joy.y * speed; }
 
             if (dx !== 0 || dy !== 0) {
-                if (!clientCollidesWithWall(me.x + dx, me.y)) me.x += dx;
-                if (!clientCollidesWithWall(me.x, me.y + dy)) me.y += dy;
-                if (isSprinting && me.stamina>0) me.stamina = Math.max(0, me.stamina - 1.5);
-                else{me.stamina = Math.min(100, me.stamina + 0.5);}
+                if (me.isSpectating) {
+                    me.x += dx;
+                    me.y += dy;
+                }else{
+                    if (!clientCollidesWithWall(me.x + dx, me.y)) me.x += dx;
+                    if (!clientCollidesWithWall(me.x, me.y + dy)) me.y += dy;
+                    if (isSprinting && me.stamina>0) me.stamina = Math.max(0, me.stamina - 1.5);
+                    else{me.stamina = Math.min(100, me.stamina + 0.5);}
+                }
                 
             }
             else{me.stamina = Math.min(100, me.stamina + 0.7);}
