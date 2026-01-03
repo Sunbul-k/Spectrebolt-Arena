@@ -14,6 +14,11 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
+
+app.get('/favicon.ico', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'download.png'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ================= CONSTANTS ================= */
@@ -34,7 +39,7 @@ let matchTimer = 20 * 60;
 let walls = generateWalls(12);
 
 /* ================= HELPERS ================= */
-const BANNED_WORDS = ['fuck', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'ass', 'dick'];
+const BANNED_WORDS = ['fuck', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'ass', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo'];
 
 function cleanUsername(name) {
     if (!name || name.trim().length === 0) return "Sniper";
@@ -192,28 +197,13 @@ io.on('connection', socket => {
     });
 
     socket.on('update', data => {
-        const p = players[socket.id];
-        if (!p) return;
-
-        // SERVER AUTHORITATIVE MOVEMENT & SPEED VALIDATION
-        const now = Date.now();
-        p.lastUpdateTime = now;
-
-        const isSprinting = (data.stamina < p.stamina); 
-        const allowedSpeed = p.isSpectating ? 12 : (isSprinting ? SPRINT_SPEED : BASE_SPEED);
-        
-        const dx = data.x - p.x;
-        const dy = data.y - p.y;
-        const dist = Math.hypot(dx, dy);
-
-        // Verification: Ensure the player isn't moving faster than physics allows
-        if (dist < allowedSpeed * 1.5) {
-            if (p.isSpectating || !collidesWithWall(data.x, data.y)) {
-                p.x = data.x; p.y = data.y;
-            }
-        }
+      const p = players[socket.id];
+      if (p && !p.isSpectating){
+        p.x = data.x; 
+        p.y = data.y;
         p.stamina = data.stamina;
         p.angle = data.angle;
+      }
     });
 
     socket.on('fire', data => {
@@ -291,4 +281,7 @@ setInterval(() => {
     io.emit('state', { players, bots, bullets, matchTimer });
 }, TICK_RATE);
 
-server.listen(PORT, () => { console.log(`SpectreBolt Arena Server Active on http://localhost:${PORT}`); });
+server.listen(PORT, '0.0.0.0', () => { 
+    console.log(`SpectreBolt Arena Server Active on Port ${PORT}`); 
+    console.log(`Running on http://localhost:${PORT}`)
+});
