@@ -35,7 +35,7 @@ let nameAttempts = {};
 let bots = {};
 let bullets = {};
 let bulletIdCounter = 0;
-let matchTimer = 20 * 60;
+let matchTimer = 15 * 60;
 let walls = generateWalls(12);
 
 /* ================= HELPERS ================= */
@@ -119,7 +119,7 @@ function handleSuccessfulJoin(socket, name) {
 
 function resetMatch() {
     console.log("Match resetting...");
-    matchTimer = 20 * 60;
+    matchTimer = 15 * 60;
     bullets = {};
     walls = generateWalls(12);
     Object.values(players).forEach(p => {

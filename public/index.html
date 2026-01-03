@@ -175,7 +175,7 @@
     </div>
 
     <div id="ui">
-        <div id="timer">TIME: 20:00</div>
+        <div id="timer">TIME: 15:00</div>
         <div>HP: <span id="hpText">100</span> | Lives: <span id="livesText">3</span></div>
         <div class="bar-bg"><div id="staminaBar"></div></div>
     </div>
@@ -188,9 +188,6 @@
     <div id="mobileControls">
         <div id="moveJoystick" class="joystick-base">
             <div id="moveKnob" class="joystick-knob"></div>
-        </div>
-        <div id="shootJoystick">
-            <div id="shootKnob">FIRE</div>
         </div>
         <div id="sprintBtn" class="action-btn">RUN</div>
     </div>
@@ -209,16 +206,17 @@
         let keys = {};
         let mouseAngle = 0;
         let isMobileSprinting = false;
-        let joy = { active: false, x: 0, y: 0 };
+        let joy = { active: false, x: 0, y: 0, identifier:null };
         let camX=0; let camY=0;
         let fireInterval = null;
 
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-        const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-
-        if (isIOS && !isStandalone) {
-            document.getElementById('ios-prompt').style.display = 'block';
-        }
+        window.addEventListener('load', () => {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+            if (isIOS && !isStandalone) {
+                document.getElementById('ios-prompt').style.display = 'block';
+            }
+        });
         async function requestFullScreen() {
             const el = document.documentElement;
             try {
@@ -265,12 +263,45 @@
             if (players[myId] && !players[myId].isSpectating) socket.emit('fire', { angle: mouseAngle });
         });
 
-        // Mobile Movement Joystick
         const joyBase = document.getElementById('moveJoystick');
         const joyKnob = document.getElementById('moveKnob');
+        window.addEventListener('touchstart', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (t.clientX < window.innerWidth / 2 && !joy.active) {
+                    joy.active = true;
+                    joy.identifier=t.identifier;
+                    updateJoystick(t);
+                }
+                else if (t.target.id !== 'sprintBtn' && t.target.id !== 'moveKnob') {
+                    handleTapToShoot(t);
+                }
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (joy.active && t.identifier === joy.identifier) {
+                    updateJoystick(t);
+                }
+            }    
+        }, { passive: false });
+        
+        window.addEventListener('touchend', (e) => {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                if (joy.active && t.identifier === joy.identifier) {
+                    joy.active = false;
+                    joy.identifier=null;
+                    joy.x=0; joy.y=0;
+                    joyKnob.style.transform = `translate(0,0)`;
+                }
+            }
+        });
+        
 
         const updateJoystick = (e) => {
-            const touch = e.touches[0];
             const rect = joyBase.getBoundingClientRect();
             const centerX = rect.left + rect.width/2;
             const centerY = rect.top + rect.height/2;
@@ -283,46 +314,12 @@
             joy.active = true;
             joyKnob.style.transform = `translate(${joy.x * 45}px, ${joy.y * 45}px)`;
         };
-
-        joyBase.addEventListener('touchstart', e => { e.preventDefault(); updateJoystick(e); });
-        joyBase.addEventListener('touchmove', e => { e.preventDefault(); updateJoystick(e); });
-        joyBase.addEventListener('touchend', () => {
-            joy.active = false; joy.x = 0; joy.y = 0;
-            joyKnob.style.transform = `translate(0,0)`;
-        });
-
-        // Mobile Aim/Shoot Joystick
-        const shootJoy = document.getElementById('shootJoystick');
-        const shootKnob = document.getElementById('shootKnob');
-
-        const updateShootJoystick = (e) => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            const rect = shootJoy.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            const dist = Math.min(50, Math.hypot(dx, dy));
-            const angle = Math.atan2(dy, dx);
-            
+        function handleTapToShoot(touch) {
+            if (!players[myId] || players[myId].isSpectating) return;
+            const angle = Math.atan2(touch.clientY - window.innerHeight / 2, touch.clientX - window.innerWidth / 2);
             mouseAngle = angle;
-            shootKnob.style.transform = `translate(${Math.cos(angle) * dist}px, ${Math.sin(angle) * dist}px)`;
-
-            if (!fireInterval) {
-                fireInterval = setInterval(() => {
-                    if (players[myId] && !players[myId].isSpectating) socket.emit('fire', { angle: mouseAngle });
-                }, 200);
-            }
-        };
-
-        shootJoy.addEventListener('touchstart', updateShootJoystick);
-        shootJoy.addEventListener('touchmove', updateShootJoystick);
-        shootJoy.addEventListener('touchend', () => {
-            clearInterval(fireInterval);
-            fireInterval = null;
-            shootKnob.style.transform = `translate(0,0)`;
-        });
+            socket.emit('fire', { angle: angle });
+        }
 
         document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
         document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });
