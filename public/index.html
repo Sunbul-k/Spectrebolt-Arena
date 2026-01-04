@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SpectreBolt Arena</title>
-    <link rel="favicon" type="image/png" href="download.png">
+    <link rel="icon" type="image/png" href="/download.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SpectreBolt">
-    <link rel="apple-touch-icon" href="download.png">
+    <link rel="apple-touch-icon" href="/download.png">
     <style>
         :root {
             --ui-bg: rgba(0, 0, 0, 0.7);
@@ -35,6 +36,13 @@
             touch-action: none; user-select: none; -webkit-user-select: none;
             width: 100vw; height: 100dvh; position: fixed;
         }
+
+        @media screen and (orientation: portrait) {
+            #portrait-warning {
+                display: flex !important;
+            }
+        }
+
 
         canvas { display: block; }
         #killFeed {
@@ -235,14 +243,12 @@
             } catch (err) { console.log(err); }
         }
 
-        window.addEventListener('resize', () => {
-            setTimeout(() => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-                window.scrollTo(0, 0);
-            }, 100);
-        });
-        window.dispatchEvent(new Event('resize'));
+        function resizeCanvas(){
+            canvas.width = window.innerWidth;
+            canvas.height=window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
         
         document.getElementById('startBtn').onclick = () => {
             requestFullScreen();
@@ -329,6 +335,20 @@
         
         socket.on('init', d => { 
             myId = d.id; mapSize = d.mapSize; walls = d.walls; 
+            players[myId] = {
+                id:myId,
+                x:d.spawnX || mapSize/2,
+                y:d.spawnY || mapSize/2,
+                angle:0,
+                hp:100,
+                stamina:100,
+                lives:3,
+                score:0,
+                name:document.getElementById('nameInput').value || "Sniper",
+                color:null,
+                isSpectating:false,
+                spawnProtected:true
+            };
             if(players[myId]) { camX = players[myId].x; camY = players[myId].y; }
         });
         socket.on('killEvent', (data) => {
@@ -339,27 +359,32 @@
             feed.appendChild(msg);
             setTimeout(() => msg.remove(), 4000);
         });
-        socket.on('state', s => { 
-            const myIdInState = s.players[myId];
-            if (myIdInState && myIdInState.isSpectating) {
-                players[myId].hp = myIdInState.hp;
-                players[myId].lives = myIdInState.lives;
-                players[myId].score = myIdInState.score;
-                players[myId].isSpectating = true;
-            } else {
-                const myLocalX = players[myId]?.x;
-                const myLocalY = players[myId]?.y;
-                players = s.players;
-                if (players[myId]) {
-                    players[myId].x = myLocalX || players[myId].x;
-                    players[myId].y = myLocalY || players[myId].y;
-                }
-            }
-
-            bots = s.bots; 
-            bullets = s.bullets; 
+        socket.on('state', s => {
             matchTimer = s.matchTimer;
+            bullets = s.bullets;
+            bots = s.bots;
+
+    
+            Object.entries(s.players).forEach(([id, p]) => {
+                if (!players[id]) players[id] = p;
+                else Object.assign(players[id], p);
+            });
+
+    
+            Object.keys(players).forEach(id => {
+                if (!s.players[id]) delete players[id];
+            });
+
+    
+            if (players[myId] && s.players[myId]) {
+                players[myId].hp = s.players[myId].hp;
+                players[myId].lives = s.players[myId].lives;
+                players[myId].score = s.players[myId].score;
+                players[myId].isSpectating = s.players[myId].isSpectating;
+                players[myId].spawnProtected = s.players[myId].spawnProtected;
+            }
         });
+
 
         socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
         socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
@@ -459,9 +484,13 @@
         }
 
         function draw() {
+            console.log("DRAW TICK", canvas.width, canvas.height);
+
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.fillStyle = "#111"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             const me = players[myId];
             if (!me) { requestAnimationFrame(draw); return; }
+            ctx.save()
 
             camX += (me.x - camX) * 0.15; camY += (me.y - camY) * 0.15;
             

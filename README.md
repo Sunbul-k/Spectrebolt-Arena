@@ -37,7 +37,7 @@ npm install
 #### If you want to play:
 ```bash
 node start
-#Open localhost:3000
+#Open localhost:8080
 ```
 
 #### If your a dev:
