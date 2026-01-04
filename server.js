@@ -341,17 +341,16 @@ io.on('connection', socket => {
         if (p) {
         
             const dist = Math.hypot(data.x - p.x, data.y - p.y);
-            const maxAllowed = 25; 
+            const maxAllowed = 45; 
 
-            if (!p.isSpectating && dist > maxAllowed + 5) {
-            
-                socket.emit('respawned', { x: p.x, y: p.y }); 
-                return;
+            if (!p.isSpectating && dist > maxAllowed) {
+                const angle = Math.atan2(data.y - p.y, data.x - p.x);
+                p.x += Math.cos(angle) * maxAllowed;
+                p.y += Math.sin(angle) * maxAllowed;
+            }else{
+                p.x = data.x;
+                p.y = data.y;
             }
-
-        
-            p.x = data.x;
-            p.y = data.y;
             p.stamina = Math.max(0, Math.min(100, data.stamina));
             p.angle = data.angle;
         }
