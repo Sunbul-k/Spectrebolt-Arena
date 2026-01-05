@@ -233,6 +233,12 @@
             }
         });
 
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden) {
+                requestAnimationFrame(draw);
+            }
+        });
+
         async function requestFullScreen() {
             const el = document.documentElement;
             try {
@@ -437,7 +443,7 @@
                 me.x += dx * 15;
                 me.y += dy * 15;
             }
-            
+
             const JOY_THRESHOLD = 0.06;
             socket.emit('input', {
                 up:    joy.active ? joy.y < -JOY_THRESHOLD : (keys['KeyW'] || keys['ArrowUp']),
@@ -516,79 +522,79 @@
 
         function draw() {
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.fillStyle = "#111"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#111";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             const me = players[myId];
-            if (!me) { requestAnimationFrame(draw); return; }
-            ctx.save()
+            if (!me) {
+                requestAnimationFrame(draw);
+                return;
+            }
 
-            camX += (me.x - camX) * 0.7; camY += (me.y - camY) * 0.7;
-            
-            ctx.translate(canvas.width/2 - camX, canvas.height/2 - camY);
+            ctx.save();
+            camX += (me.x - camX) * 0.7;
+            camY += (me.y - camY) * 0.7;
+            ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
 
-            ctx.fillStyle = "#006666"; ctx.fillRect(0, 0, mapSize, mapSize);
+            ctx.fillStyle = "#006666";
+            ctx.fillRect(0, 0, mapSize, mapSize);
+
             ctx.strokeStyle = "rgba(0,0,0,0.2)";
-            for(let i=0; i<=mapSize; i+=100) {
-                ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,mapSize); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(mapSize,i); ctx.stroke();
+            for (let i = 0; i <= mapSize; i += 100) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, mapSize); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(mapSize, i); ctx.stroke();
             }
 
             walls.forEach(w => {
-                ctx.fillStyle = "#333"; ctx.fillRect(w.x, w.y, w.w, w.h);
-                ctx.strokeStyle = "#000"; ctx.lineWidth = 4; ctx.strokeRect(w.x, w.y, w.w, w.h);
+                ctx.fillStyle = "#333";
+                ctx.fillRect(w.x, w.y, w.w, w.h);
+                ctx.strokeStyle = "#000";
+                ctx.lineWidth = 4;
+                ctx.strokeRect(w.x, w.y, w.w, w.h);
             });
 
             Object.values(bullets).forEach(b => {
-                ctx.fillStyle = "yellow"; ctx.beginPath(); ctx.arc(b.x, b.y, 6, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "yellow";
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
+                ctx.fill();
             });
 
             Object.values(bots).forEach(b => {
-                b.renderX = lerp(b.renderX || b.x, b.x, 0.15); b.renderY = lerp(b.renderY || b.y, b.y, 0.15);
+                b.renderX = lerp(b.renderX || b.x, b.x, 0.15);
+                b.renderY = lerp(b.renderY || b.y, b.y, 0.15);
                 drawEntity({ ...b, x: b.renderX, y: b.renderY }, b.color, b.name, false);
             });
+
             Object.values(players).forEach(p => {
                 if (p.id === myId) return;
-                p.renderX = lerp(p.renderX || p.x, p.x, 0.15); p.renderY = lerp(p.renderY || p.y, p.y, 0.15);
+                p.renderX = lerp(p.renderX || p.x, p.x, 0.15);
+                p.renderY = lerp(p.renderY || p.y, p.y, 0.15);
                 drawEntity({ ...p, x: p.renderX, y: p.renderY }, p.color, p.name, false);
             });
-            
+
             drawEntity(me, me.color, me.name, true);
             ctx.restore();
 
             document.getElementById('hpText').innerText = Math.ceil(me.hp);
             document.getElementById('livesText').innerText = me.lives;
             document.getElementById('staminaBar').style.width = me.stamina + "%";
-            
+
             const mins = Math.floor(matchTimer / 60);
             const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
             document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
-            
-            const all = [...Object.values(players), ...Object.values(bots)].sort((a,b) => b.score - a.score).slice(0,5);
-            document.getElementById('scoreList').innerHTML = all.map(p => `<div>${p.name}: ${p.score}</div>`).join('');
+
+            const all = [...Object.values(players), ...Object.values(bots)]
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 5);
+
+            document.getElementById('scoreList').innerHTML =
+                all.map(p => `<div>${p.name}: ${p.score}</div>`).join('');
 
             if (matchTimer <= 0) {
                 document.getElementById('gameOver').style.display = 'flex';
-    
-    
-                const allEntities = [...Object.values(players), ...Object.values(bots)];
-                const high = Math.max(...allEntities.map(e => e.score));
-                const winners = allEntities.filter(e => e.score === high);
-    
-                document.getElementById('winnerList').innerHTML = `High Score: ${high}<br>` + winners.map(w => w.name).join(', ');
-
-    
-                const scoreDiv = document.getElementById('score');
-                const myCurrentScore = players[myId].score;
-                const savedBest = parseInt(localStorage.getItem('spectreBolt_PB')) || 0;
-
-                if (myCurrentScore > savedBest) {
-                    localStorage.setItem('spectreBolt_PB', myCurrentScore);
-                    scoreDiv.innerHTML = `NEW PERSONAL BEST: ${myCurrentScore}!`;
-                    scoreDiv.style.color = "var(--accent)";
-                } else {
-                    scoreDiv.innerHTML = `Your Score: ${myCurrentScore} | Best: ${savedBest}`;
-                    scoreDiv.style.color = "white"; 
-                }
-
+                drawMinimap();
+                requestAnimationFrame(draw);
                 return;
             }
             drawMinimap();
