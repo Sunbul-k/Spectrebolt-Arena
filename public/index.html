@@ -211,7 +211,6 @@
         let lastMiniUpdate = 0;
         let myId, mapSize, walls = [];
         let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
-        let localBullets = [];
         let keys = {};
         let mouseAngle = 0;
         let isMobileSprinting = false;
@@ -301,13 +300,6 @@
             mouseAngle = angle;
 
             socket.emit('fire', { angle });
-            localBullets.push({
-                x: me.x,
-                y: me.y,
-                angle,
-                born: performance.now(),
-                speed: 900 / 60
-            });
         }
 
 
@@ -389,14 +381,6 @@
             if (!me || me.isSpectating) return;
 
             socket.emit('fire', { angle: mouseAngle });
-
-            localBullets.push({
-                x: me.x,
-                y: me.y,
-                angle: mouseAngle,
-                born: performance.now(),
-                speed: 900 / 60
-            });
         });
 
 
@@ -607,17 +591,6 @@
                 ctx.strokeStyle = "#000";
                 ctx.lineWidth = 4;
                 ctx.strokeRect(w.x, w.y, w.w, w.h);
-            });
-            localBullets = localBullets.filter(b => performance.now() - b.born < 120);
-
-            localBullets.forEach(b => {
-                b.x += Math.cos(b.angle) * b.speed;
-                b.y += Math.sin(b.angle) * b.speed;
-
-                ctx.fillStyle = "rgba(255,255,0,0.6)";
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
-                ctx.fill();
             });
             Object.values(bullets).forEach(b => {
                 ctx.fillStyle = "yellow";

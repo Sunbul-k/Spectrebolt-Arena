@@ -32,7 +32,7 @@ const NET_TICK = 1000 / 15;
 const MAX_PLAYERS=15;
 const JOIN_CUTOFF_SECONDS=5*60;
 const BULLET_LIFETIME = 1200;
-const MAX_BULLETS=120;
+const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 
 
@@ -48,6 +48,7 @@ let walls = generateWalls(12);
 let resetScheduled = false;
 let matchStarted = false;
 let botAccumulator = 0;
+let bulletAccumulator = 0;
 let specialsSpawned = false;
 
 
@@ -219,7 +220,7 @@ class Bot {
             6
         )) return;
         if (Date.now() - this.spawnTime < 1200) return;
-        if (Object.keys(bullets).length >= MAX_BULLETS) return;
+        if (Object.keys(bullets).length > MAX_BULLETS) return;
         const targets = Object.values(players).filter(p => !p.isSpectating);
         if (!targets.length) return;
 
@@ -400,7 +401,7 @@ io.on('connection', socket => {
         if (now - p.lastFireTime < 250) return; // 4 shots/sec
         p.lastFireTime = now;
 
-        if (Object.keys(bullets).length >= MAX_BULLETS) return;
+        if (Object.keys(bullets).length > MAX_BULLETS) return;
 
         const id = 'b' + (++bulletIdCounter);
         bullets[id] = {
@@ -501,12 +502,12 @@ setInterval(() => {
                 dy /= len;
             }
 
-            let nx = p.x + dx * speed*delta*60;
+            let nx = p.x + dx * speed;
             if (!collidesWithWall(nx, p.y, ENTITY_RADIUS)) {
                 p.x = nx;
             }
 
-            let ny = p.y + dy * speed*delta*60;
+            let ny = p.y + dy * speed;
             if (!collidesWithWall(p.x, ny, ENTITY_RADIUS)) {
                 p.y = ny;
             }
@@ -519,79 +520,123 @@ setInterval(() => {
         Object.values(bots).forEach(b => {if (b.retired) return; if (b.id === 'bot_eliminator') b.updateAdvanced(players); else b.update(players);});
         botAccumulator=0;
     }
-    Object.values(bullets).forEach(b => {
-        if (Date.now() -b.born > BULLET_LIFETIME) {delete bullets[b.id];return;}
-        const bulletDelta = delta * 60;
-        b.x += Math.cos(b.angle) * b.speed*bulletDelta;
-        b.y += Math.sin(b.angle) * b.speed*bulletDelta;
+    bulletAccumulator += delta;
 
-        
-        if (collidesWithWall(b.x, b.y, ENTITY_RADIUS) || b.x < 0 || b.x > MAP_SIZE || b.y < 0 || b.y > MAP_SIZE) { 
-            delete bullets[b.id]; return; 
-        }
-        let hit=false;
+    if (bulletAccumulator >= 1 / 15) {
+        bulletAccumulator = 0;
 
-        for (const target of[...Object.values(players), ...Object.values(bots)]) {
-            if (hit) break;
-            if (target.id === b.owner || target.isSpectating || Date.now() < target.spawnProtectedUntil || target.retired) continue;
-            const dx=b.x-target.x; const dy=b.y-target.y;
-            if (dx*dx + dy*dy < BULLET_RADIUS*BULLET_RADIUS) {
-                const baseDamage = 10;
-                const multiplier = target.damageTakenMultiplier ?? 1;
-                target.hp -= baseDamage * multiplier;
-                target.lastRegenTime = Date.now();
+        Object.values(bullets).forEach(b => {
+            if (Date.now() - b.born > BULLET_LIFETIME) {
+                delete bullets[b.id];
+                return;
+            }
 
-                if (target.hp <= 0) {
-                    const shooter = players[b.owner] || bots[b.owner];
-                    const victimName=target.name
-                    const shooterName = shooter ? shooter.name : "The Void";
-                    io.emit('killEvent', { shooter: shooterName, victim: victimName });
-                    if (shooter) {
-                        hit=true;
-                        if (b.owner.toString().includes('bot')) {
-                            if (!target.id.toString().includes('bot')) shooter.score += (b.owner === 'bot_bobby' ? 6 : 3);
-                        } else {
-                            if (target.id === 'bot_bobby') shooter.score += 1;
-                            else if (target.id === 'bot_rob') shooter.score += 3;
-                            else if (target.id === 'bot_eliminator') shooter.score += 6;
-                            else shooter.score += 3; 
-                        }
-                    }
-                    
-                    if (!target.id.toString().includes('bot')) {
-                        target.lives--;
-                        if (target.lives <= 0) { target.hp = 0; target.isSpectating = true;} 
-                        else {
-                            const respawnPos = getSafeSpawn();
-                            Object.assign(target, { x: respawnPos.x, y: respawnPos.y, hp: 100, stamina: 100 , spawnProtectedUntil: Date.now() + 3000, lastRegenTime: Date.now()});
-                            io.to(target.id).emit('respawned', { x: target.x, y: target.y });
-                        }
-                    } else {
-                        if (target.retired) return;
-                        
-                        if (shouldRespawnBot(target.id)) {
-                            const respawn = getBotSafeSpawn();
-                            Object.assign(target, {
-                                hp: 100,
-                                x: respawn.x,
-                                y: respawn.y,
-                                spawnTime: Date.now(),
-                            });
-                        } else {
-                            target.retired=true;
-                            if (target.id === 'bot_eliminator') {
-                                console.log('The Eliminator has fallen…');
-                            } else if (target.id === 'bot_rob') {
-                                console.log('Rob has left the arena.');
+            const bulletStep = 60 / 15;
+            b.x += Math.cos(b.angle) * b.speed * bulletStep;
+            b.y += Math.sin(b.angle) * b.speed * bulletStep;
+
+            if (
+                collidesWithWall(b.x, b.y, ENTITY_RADIUS) ||
+                b.x < 0 || b.x > MAP_SIZE ||
+                b.y < 0 || b.y > MAP_SIZE
+            ) {
+                delete bullets[b.id];
+                return;
+            }
+
+            let hit = false;
+
+            const livePlayers = Object.values(players).filter(p => !p.isSpectating);
+            const liveBots = Object.values(bots).filter(b => !b.retired);
+
+            for (const target of [...livePlayers, ...liveBots]) {
+                if (
+                    hit ||
+                    target.id === b.owner ||
+                    target.isSpectating ||
+                    Date.now() < target.spawnProtectedUntil ||
+                    target.retired
+                ) continue;
+
+                const dx = b.x - target.x;
+                const dy = b.y - target.y;
+                const HIT_RADIUS = ENTITY_RADIUS + BULLET_RADIUS + 6;
+
+                if (dx * dx + dy * dy < HIT_RADIUS * HIT_RADIUS) {
+                    const baseDamage = 10;
+                    const multiplier = target.damageTakenMultiplier ?? 1;
+                    target.hp -= baseDamage * multiplier;
+                    target.lastRegenTime = Date.now();
+
+                    if (target.hp <= 0) {
+                        const shooter = players[b.owner] || bots[b.owner];
+                        const victimName = target.name;
+                        const shooterName = shooter ? shooter.name : "The Void";
+
+                        io.emit('killEvent', { shooter: shooterName, victim: victimName });
+
+                        if (shooter) {
+                            hit = true;
+                            if (b.owner.toString().includes('bot')) {
+                                if (!target.id.toString().includes('bot')) {
+                                    shooter.score += (b.owner === 'bot_bobby' ? 6 : 3);
+                                }
+                            } else {
+                                if (target.id === 'bot_bobby') shooter.score += 1;
+                                else if (target.id === 'bot_rob') shooter.score += 3;
+                                else if (target.id === 'bot_eliminator') shooter.score += 6;
+                                else shooter.score += 3;
                             }
                         }
-                        
+
+                        if (!target.id.toString().includes('bot')) {
+                            target.lives--;
+                            if (target.lives <= 0) {
+                                target.hp = 0;
+                                target.isSpectating = true;
+                            } else {
+                                const respawnPos = getSafeSpawn();
+                                Object.assign(target, {
+                                    x: respawnPos.x,
+                                    y: respawnPos.y,
+                                    hp: 100,
+                                    stamina: 100,
+                                    spawnProtectedUntil: Date.now() + 3000,
+                                    lastRegenTime: Date.now()
+                                });
+                                io.to(target.id).emit('respawned', {
+                                    x: target.x,
+                                    y: target.y
+                                });
+                            }
+                        } else {
+                            if (target.retired) return;
+
+                            if (shouldRespawnBot(target.id)) {
+                                const respawn = getBotSafeSpawn();
+                                Object.assign(target, {
+                                    hp: 100,
+                                    x: respawn.x,
+                                    y: respawn.y,
+                                    spawnTime: Date.now()
+                                });
+                            } else {
+                                target.retired = true;
+                                if (target.id === 'bot_eliminator') {
+                                    console.log('The Eliminator has fallen…');
+                                } else if (target.id === 'bot_rob') {
+                                    console.log('Rob has left the arena.');
+                                }
+                            }
+                        }
                     }
+
+                    if (hit) delete bullets[b.id];
                 }
-                if (hit) delete bullets[b.id];
             }
-        }
-    });
+        });
+    }
+
     if (Date.now() - lastNetSend > NET_TICK) {
         const slimPlayers = {};
         for (const [id, p] of Object.entries(players)) {
@@ -610,8 +655,21 @@ setInterval(() => {
                 color: p.color
             };
         }
-        const activeBots={};
-        for (const [id, b] of Object.entries(bots)) if(!b.retired) activeBots[id]=b;
+        const slimBots = {};
+        for (const [id, b] of Object.entries(bots)) {
+            if (b.retired) continue;
+            slimBots[id] = {
+                id: b.id,
+                x: b.x,
+                y: b.y,
+                hp: b.hp,
+                score: b.score,
+                angle: b.angle,
+                name: b.name,
+                color: b.color
+            };
+        }
+
         const slimBullets = {};
         for (const [id, b] of Object.entries(bullets)) {
             slimBullets[id] = {
@@ -621,7 +679,7 @@ setInterval(() => {
             };
         }
 
-        io.emit('state', { players:slimPlayers, bots:activeBots, bullets:slimBullets, matchTimer });
+        io.emit('state', { players:slimPlayers, bots:slimBots, bullets:slimBullets, matchTimer });
         lastNetSend = Date.now();
     }
 }, TICK_RATE);
