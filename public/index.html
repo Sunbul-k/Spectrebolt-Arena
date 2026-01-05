@@ -211,6 +211,7 @@
         let lastMiniUpdate = 0;
         let myId, mapSize, walls = [];
         let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
+        let localBullets = [];
         let keys = {};
         let mouseAngle = 0;
         let isMobileSprinting = false;
@@ -291,10 +292,24 @@
 
         function handleTapToShoot(touch) {
             if (!players[myId] || players[myId].isSpectating) return;
-            const angle = Math.atan2(touch.clientY - window.innerHeight / 2, touch.clientX - window.innerWidth / 2);
+
+            const angle = Math.atan2(
+                touch.clientY - window.innerHeight / 2,
+                touch.clientX - window.innerWidth / 2
+            );
+
             mouseAngle = angle;
-            socket.emit('fire', { angle: angle });
+
+            socket.emit('fire', { angle });
+            localBullets.push({
+                x: me.x,
+                y: me.y,
+                angle,
+                born: performance.now(),
+                speed: 900 / 60
+            });
         }
+
 
         const MAX_DIST = 50;
         const DEADZONE = 6;
@@ -370,8 +385,20 @@
         });
         window.addEventListener('mousedown', (e) => {
             if (e.target.tagName !== 'CANVAS') return;
-            if (players[myId] && !players[myId].isSpectating) socket.emit('fire', { angle: mouseAngle });
+            const me = players[myId];
+            if (!me || me.isSpectating) return;
+
+            socket.emit('fire', { angle: mouseAngle });
+
+            localBullets.push({
+                x: me.x,
+                y: me.y,
+                angle: mouseAngle,
+                born: performance.now(),
+                speed: 900 / 60
+            });
         });
+
 
         
         socket.on('init', d => { 
@@ -449,6 +476,10 @@
             if (joy.active) {
                 dx = joy.x;
                 dy = joy.y;
+            }
+            if (me.isSpectating) {
+                dx = joy.x || dx;
+                dy = joy.y || dy;
             }
 
             let aimingAngle = mouseAngle;
@@ -577,7 +608,17 @@
                 ctx.lineWidth = 4;
                 ctx.strokeRect(w.x, w.y, w.w, w.h);
             });
+            localBullets = localBullets.filter(b => performance.now() - b.born < 120);
 
+            localBullets.forEach(b => {
+                b.x += Math.cos(b.angle) * b.speed;
+                b.y += Math.sin(b.angle) * b.speed;
+
+                ctx.fillStyle = "rgba(255,255,0,0.6)";
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+            });
             Object.values(bullets).forEach(b => {
                 ctx.fillStyle = "yellow";
                 ctx.beginPath();

@@ -148,7 +148,8 @@ function handleSuccessfulJoin(socket, name) {
         isSpectating: false, 
         spawnProtectedUntil: Date.now() + 3000,
         lastRegenTime: Date.now(),
-        damageTakenMultiplier: 1
+        damageTakenMultiplier: 1,
+        lastFireTime: 0
     };
     
     socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX:pos.x, spawnY:pos.y });
@@ -184,7 +185,7 @@ function resetMatch() {
     matchStarted = Object.values(players).length > 0;
     Object.values(players).forEach(p => {
         const pos = getSafeSpawn();
-        Object.assign(p, { x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, isSpectating: false });
+        Object.assign(p, { x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, isSpectating: false, lastFireTime: 0 });
     });
     spawnSpecialBots()
     Object.values(bots).forEach(b => {
@@ -394,9 +395,25 @@ io.on('connection', socket => {
     socket.on('fire', data => {
         const p = players[socket.id];
         if (!p || p.isSpectating) return;
+
+        const now = Date.now();
+        if (now - p.lastFireTime < 250) return; // 4 shots/sec
+        p.lastFireTime = now;
+
+        if (Object.keys(bullets).length >= MAX_BULLETS) return;
+
         const id = 'b' + (++bulletIdCounter);
-        bullets[id] = { id, x: p.x, y: p.y, angle: data.angle, owner: socket.id, speed: 900 / 60, born:Date.now() };
+        bullets[id] = {
+            id,
+            x: p.x,
+            y: p.y,
+            angle: data.angle,
+            owner: socket.id,
+            speed: 900 / 60,
+            born: now
+        };
     });
+
 
     socket.on('disconnect', () => { 
         delete players[socket.id]; 
@@ -469,6 +486,12 @@ setInterval(() => {
                 p.stamina = Math.min(100, p.stamina + 0.6);
             }
         }
+        if (p.isSpectating) {
+            p.x += dx * speed * delta * 60;
+            p.y += dy * speed * delta * 60;
+            return;
+        }
+
         if (dx || dy) {
             const len = Math.hypot(dx, dy);
 
@@ -498,8 +521,9 @@ setInterval(() => {
     }
     Object.values(bullets).forEach(b => {
         if (Date.now() -b.born > BULLET_LIFETIME) {delete bullets[b.id];return;}
-        b.x += Math.cos(b.angle) * b.speed;
-        b.y += Math.sin(b.angle) * b.speed;
+        const bulletDelta = delta * 60;
+        b.x += Math.cos(b.angle) * b.speed*bulletDelta;
+        b.y += Math.sin(b.angle) * b.speed*bulletDelta;
 
         
         if (collidesWithWall(b.x, b.y, ENTITY_RADIUS) || b.x < 0 || b.x > MAP_SIZE || b.y < 0 || b.y > MAP_SIZE) { 
@@ -588,7 +612,16 @@ setInterval(() => {
         }
         const activeBots={};
         for (const [id, b] of Object.entries(bots)) if(!b.retired) activeBots[id]=b;
-        io.emit('state', { players:slimPlayers, bots:activeBots, bullets, matchTimer });
+        const slimBullets = {};
+        for (const [id, b] of Object.entries(bullets)) {
+            slimBullets[id] = {
+                x: b.x,
+                y: b.y,
+                angle: b.angle
+            };
+        }
+
+        io.emit('state', { players:slimPlayers, bots:activeBots, bullets:slimBullets, matchTimer });
         lastNetSend = Date.now();
     }
 }, TICK_RATE);
