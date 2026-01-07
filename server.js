@@ -155,6 +155,7 @@ function handleSuccessfulJoin(socket, name) {
         damageTakenMultiplier: 1,
         lastFireTime: 0,
         fireCooldown: 100, // ms (10 shots/sec)
+        input: {moveX: 0,moveY: 0,sprint: false,angle: 0}
     };
     
     socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX:pos.x, spawnY:pos.y });
@@ -478,11 +479,12 @@ setInterval(() => {
         }
         
 
-
+        
+        const input = p.input || {sprint:false};
         let speed = p.isSpectating ? 15 : (p.input.sprint && p.stamina > 0? SPRINT_SPEED: BASE_SPEED);
 
 
-        const input = p.input || {};
+
         let dx = input.moveX || 0;
         let dy = input.moveY || 0;
 
