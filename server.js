@@ -187,8 +187,8 @@ function spawnSpecialBots() {
 
     if (RELEASES.ROB && Math.random() < 0.75) {
         const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
-        rob.damageTakenMultiplier = 0.65;
-        rob.hp = 160;
+        rob.damageTakenMultiplier = 0.75;
+        rob.hp = 100;
         rob.regenRate = 8; // per tick
         bots['bot_rob'] = rob;
         console.log('Rob has entered the arena.');
@@ -197,10 +197,24 @@ function spawnSpecialBots() {
     if (RELEASES.ELIMINATOR && Math.random() < 0.25) {
         const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
         elim.isRetreating = false;
-        elim.damageTakenMultiplier = 0.75;
+        elim.damageTakenMultiplier = 0.55;
         bots['bot_eliminator'] = elim;
         console.log('The Eliminator has entered the arena.');
     }
+    // Force test at least one of them:
+
+    /*if (!bots['bot_rob'] && !bots['bot_eliminator'] && RELEASES.ROB && RELEASES.ELIMINATOR) {
+        if (Math.random() < 0.75) {
+            const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
+            rob.damageTakenMultiplier = 0.75;
+            rob.hp = 100;
+            bots['bot_rob'] = rob;
+        } else {
+            const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
+            elim.damageTakenMultiplier = 0.55;
+            bots['bot_eliminator'] = elim;
+        }
+    }*/
 }
 
 function resetMatch() {
@@ -301,8 +315,8 @@ class Bot {
     update(players) {
         let moveSpeed=this.speed
         if (Date.now() - this.lastRegenTime > 3000) {
-            const maxHp = this.id === 'bot_rob' ? 160 : 100;
-            const regen = this.id === 'bot_rob' ? 2 : 5;
+            const maxHp =100;
+            const regen = 5;
 
             this.hp = Math.min(maxHp, this.hp + regen);
 
@@ -331,7 +345,9 @@ class Bot {
     updateAdvanced(players) {
         if (Date.now() - this.lastRegenTime > 3000) {
             const maxHp = 100;
-            this.hp = Math.min(maxHp, this.hp + 5);
+            const regen = this.isRetreating ? 6 : 3;
+            this.hp = Math.min(maxHp, this.hp + regen);
+
 
             this.lastRegenTime = Date.now();
         }
@@ -428,7 +444,7 @@ io.on('connection', socket => {
 
     socket.on('input', input => {
         const p = players[socket.id];
-        if (!p || p.isSpectating) return;
+        if (!p) return;
         if (!matchStarted) {
             matchStarted = true;
             matchTimer = 15 * 60;
@@ -461,15 +477,16 @@ io.on('connection', socket => {
 
 
     socket.on('disconnect', () => { 
-        delete players[socket.id]; 
-        delete nameAttempts[socket.id]; 
+        const color = players[socket.id]?.color;
+
+        delete players[socket.id];
+        delete nameAttempts[socket.id];
+
+        if (color) USED_COLORS.delete(color);
 
         if (Object.keys(players).length === 0) {
             matchStarted = false;
             resetScheduled = false;
-        }
-        if (players[socket.id]?.color) {
-            USED_COLORS.delete(players[socket.id].color);
         }
 
         if (Object.keys(players).length === 0 && !resetScheduled) {
@@ -588,7 +605,7 @@ setInterval(() => {
             b.y += Math.sin(b.angle) * b.speed * bulletStep;
 
             if (
-                collidesWithWall(b.x, b.y, ENTITY_RADIUS) ||
+                collidesWithWall(b.x, b.y, BULLET_RADIUS) ||
                 b.x < 0 || b.x > MAP_SIZE ||
                 b.y < 0 || b.y > MAP_SIZE
             ) {
@@ -709,7 +726,7 @@ setInterval(() => {
                         }
                     }
 
-                    if (hit) delete bullets[b.id];
+                    if (hit) {delete bullets[b.id]; break;}
                 }
             }
         });

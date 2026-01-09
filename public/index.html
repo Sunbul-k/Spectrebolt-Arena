@@ -159,7 +159,7 @@
         @media (pointer: coarse) { #mobileControls { display: block; } }
 
         .joystick-base {
-            position: absolute; bottom: 40px; left: 60px; width: 140px; height: 140px;
+            position: absolute; bottom: calc(90px + env(safe-area-inset-bottom)); left: 60px; width: 140px; height: 140px;
             background: rgba(255,255,255,0.1); border-radius: 50%; pointer-events: auto;
         }
         .joystick-knob {
@@ -412,9 +412,6 @@
             joy.startX = t.clientX;
             joy.startY = t.clientY;
 
-            joyBase.style.left = (joy.startX - 70) + "px";
-            joyBase.style.top  = (joy.startY - 70) + "px";
-
             joyKnob.style.transform = "translate(0,0)";
             e.preventDefault();
         }, { passive: false });
@@ -439,7 +436,7 @@
                 }
 
                 joy.x = Math.cos(angle) * (clamped / MAX_DIST);
-                joy.y = Math.sin(angle) * (clamped / MAX_DIST);
+                joy.y = Math.sin(angle) * Math.min(1, clamped / MAX_DIST);
 
                 joyKnob.style.transform =`translate(${joy.x * MAX_DIST}px, ${joy.y * MAX_DIST}px)`;
 
