@@ -10,6 +10,37 @@ const path = require('path');
 const { Server } = require('socket.io');
 
 const app = express();
+
+app.get('/robots.txt', (req, res) => {
+    console.log(`[robots.txt] Requested by ${req.ip} at ${new Date().toISOString()}`);
+
+    res.type('text/plain');
+    
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    res.send(`User-agent: *
+Allow: /
+
+Sitemap: https://spectrebolt-arena-9xk4.onrender.com/sitemap.xml`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+    console.log(`[sitemap.xml] Requested by ${req.ip} at ${new Date().toISOString()}`);
+
+    res.type('application/xml');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+
+    const today = new Date().toISOString().split('T')[0];
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://spectrebolt-arena-9xk4.onrender.com/</loc>
+        <lastmod>${today}</lastmod>
+        <priority>1.0</priority>
+    </url>
+</urlset>`);
+});
+
 const server = http.createServer(app);
 const io = new Server(server);
 
