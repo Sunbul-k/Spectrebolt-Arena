@@ -1,0 +1,213 @@
+:root {
+        --ui-bg: rgba(0, 0, 0, 0.7);
+        --accent: #0f4;
+        --sprint: #0cf;
+}
+
+#portrait-warning {
+    display: none; 
+    position: fixed; 
+    inset: 0; 
+    background: #222; 
+    z-index: 9999;
+    color: white; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    text-align: center; 
+    padding: 20px;
+}
+
+body { 
+    margin: 0; 
+    overflow: hidden; 
+    background: #111; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    width: 100vw; 
+    height: 100dvh; 
+    position: fixed;
+}
+#howToPlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.howto-box {
+    background: #222;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 420px;
+    text-align: center;
+}
+
+.howto-box h2 {
+    margin-top: 0;
+    color: var(--accent);
+}
+
+.howto-box ul {
+    text-align: left;
+    padding-left: 20px;
+}
+
+.howto-box li {
+    margin-bottom: 10px;
+    font-size: 15px;
+}
+
+.howto-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.howto-buttons button {
+    padding: 10px 18px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    font-weight: bold;
+    cursor: pointer;
+}
+
+
+@media screen and (orientation: portrait) {
+    #portrait-warning {
+        display: flex !important;
+    }
+}
+
+
+canvas { display: block; }
+#killFeed {
+    position: fixed;
+    top: 80px;
+    right: 15px;
+    text-align: right;
+    pointer-events: none;
+    z-index: 100;
+}
+.kill-msg {
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 5px 10px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-size: 14px;
+    animation: fadeOut 4s forwards;
+}
+@keyframes fadeOut {
+    0% { opacity: 1; transform: translateX(0); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(20px); }
+}
+        
+#nameScreen, #gameOver {
+    position: fixed; 
+    inset: 0; 
+    background: #222; 
+    z-index: 1000;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+}
+
+#nameScreen h1 { color: white; font-size: 56px; margin-bottom: 30px; letter-spacing: 5px; }
+#nameScreen input { 
+    padding: 15px; 
+    font-size: 20px; 
+    border-radius: 5px; 
+    border: none; 
+    width: 280px; 
+    text-align: center; 
+    outline: none;
+}
+#nameScreen button, #gameOver button { 
+    margin-top: 25px; padding: 15px 50px; font-size: 22px; 
+    background: var(--accent); border: none; cursor: pointer; 
+    font-weight: bold; border-radius: 5px; transition: transform 0.1s;
+}
+#ui, #leaderboard {
+    position: fixed; top: 15px; color: white;
+    background: var(--ui-bg); padding: 15px; border-radius: 10px; 
+    pointer-events: none; z-index: 10; font-size: 14px;
+}
+#ui { left: 15px; min-width: 160px; }
+#leaderboard { right: 15px; text-align: right; min-width: 140px; pointer-events: auto;}
+
+.bar-bg { width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin-top: 5px; }
+#staminaBar { width: 100%; height: 100%; background: var(--sprint); transition: width 0.1s; }
+#timer { font-size: 22px; font-weight: bold; color: var(--accent); margin-bottom: 8px; }
+#score {
+    font-size: 20px;
+    color: var(--sprint);
+    margin-top: 15px;
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+}
+
+        
+#mobileControls {
+    display: none; position: fixed; inset: 0; z-index: 500; pointer-events: none;
+}
+@media (pointer: coarse) { #mobileControls { display: block; } }
+
+.joystick-base {
+    position: absolute; bottom: calc(45px + env(safe-area-inset-bottom)); left: 60px; width: 140px; height: 140px;
+    background: rgba(255,255,255,0.1); border-radius: 50%; pointer-events: auto;
+}
+.joystick-knob {
+    position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
+    background: rgba(255,255,255,0.4); border-radius: 50%;
+}
+
+.action-btn {
+    position: absolute; border-radius: 50%; display: flex; align-items: center; 
+    justify-content: center; color: white; font-weight: bold; pointer-events: auto;
+}
+#sprintBtn {
+    bottom: 150px; right: 40px; width: 80px; height: 80px;
+    background: rgba(0, 150, 255, 0.6); border: 3px solid rgba(255,255,255,0.2);
+    font-size: 14px;
+}
+#shootJoystick {
+    background: rgba(255, 60, 60, 0.25);
+    border: 3px solid rgba(255, 60, 60, 0.6);
+}
+#shootJoystick .joystick-knob {
+    background: rgba(255, 80, 80, 0.8);
+}
+        
+#minimap-container {
+    position: fixed; bottom: 20px; left: 20px; width: 140px; height: 140px;
+    background: rgba(0, 0, 0, 0.6); border: 2px solid #555; border-radius: 8px;
+    overflow: hidden; z-index: 5;
+}
+#minimap-canvas { display: block; }
+#mapToggle {
+    display: none; position: fixed; bottom: 170px; left: 20px; padding: 8px 12px;
+    background: var(--ui-bg); color: white; border: 1px solid #555;
+    border-radius: 5px; font-size: 10px; pointer-events: auto; z-index: 10;
+}
+@media (pointer: coarse) { #mapToggle { display: block; } }
+
+#ios-prompt {
+    display: none; position: fixed; bottom: 20px; left: 50%;
+    transform: translateX(-50%); width: 90%; max-width: 350px;
+    background: white; color: black; padding: 15px; border-radius: 12px;
+    z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 14px;
+}
+#ios-prompt .close-prompt {
+    position: absolute; top: 5px; right: 10px; font-size: 20px; cursor: pointer;
+}
+#ios-prompt b { color: #007aff; } 
