@@ -250,11 +250,13 @@ const socket = io({ transports: ['websocket'], upgrade: false });
         
         socket.on('init', d => {
             if (!d || !d.id) return;
-
+            myId = d.id;
+            mapSize = d.mapSize;
+            walls = d.walls;
             const isForcedSpectator = !!d.forcedSpectator;
 
             players[d.id] = {id: d.id,x: d.spawnX ?? mapSize / 2,y: d.spawnY ?? mapSize / 2,angle: 0,hp: isForcedSpectator ? 0 : 100,stamina: 100,lives: isForcedSpectator ? 0 : 3,score: 0,name: d.name || "Sniper",color: d.color || null,isSpectating: isForcedSpectator,forcedSpectator: isForcedSpectator,spawnProtected: true};
-            
+
             camX = players[d.id].x;
             camY = players[d.id].y;
         });
@@ -525,9 +527,14 @@ const socket = io({ transports: ['websocket'], upgrade: false });
         function draw(){
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             if (!players || !players[myId]) {
+                ctx.setTransform(1,0,0,1,0,0);
+                ctx.fillStyle = "#111";
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+                ctx.fillStyle = "#f44";
+                ctx.font = "20px monospace";
+                ctx.fillText("Black screen.. again", 20, 40);
                 return;
             }
-
             
 
             ctx.setTransform(1, 0, 0, 1, 0, 0);
