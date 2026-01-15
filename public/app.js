@@ -280,15 +280,16 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
     
             Object.entries(s.players).forEach(([id, p]) => {
-                if (!players[id]) players[id] = p;
-                else {
-                    const color = players[id].color ?? p.color;
-                    const name = players[id].name ?? p.name;
-                    Object.assign(players[id], p);
-                    players[id].color = color;
-                    players[id].name = name;
-                }
+                const prev = players[id] || {};
+
+                players[id] = {
+                    ...prev,
+                    ...p,
+                    color: prev.color ?? p.color,
+                    name: prev.name ?? p.name
+                };
             });
+
 
     
             Object.keys(players).forEach(id => {
@@ -535,6 +536,14 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 ctx.fillText("Black screen.. again", 20, 40);
                 return;
             }
+
+            if (!mapSize || !walls) {
+                ctx.fillStyle = "#111";
+                ctx.fillRect(0,0,canvas.width,canvas.height);
+                ctx.fillStyle = "#fa0";
+                ctx.fillText("Waiting for map...", 20, 40);
+                return;
+            }       
             
 
             ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -598,6 +607,7 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
                 ctx.beginPath();
                 ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = "#ff0";
                 ctx.fill();
             });
 
