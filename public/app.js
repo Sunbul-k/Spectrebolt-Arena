@@ -255,13 +255,14 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 x:d.spawnX || mapSize/2,
                 y:d.spawnY || mapSize/2,
                 angle:0,
-                hp:100,
+                hp:forcedSpectator ? 0: 100,
                 stamina:100,
-                lives:3,
+                lives:forcedSpectator ? 0: 3,
                 score:0,
                 name:d.name || "Sniper",
                 color:null,
                 isSpectating:false,
+                forcedSpectator: d.forcedSpectator || false,
                 spawnProtected:true
             };
             if (players[myId]) { camX = players[myId].x; camY = players[myId].y; }
@@ -271,8 +272,11 @@ const socket = io({ transports: ['websocket'], upgrade: false });
             const msg = document.createElement('div');
             msg.className='kill-msg';
             msg.innerHTML = `<span style="color:var(--accent)">${data.shooter}</span> killed ${data.victim}`;
-            if (feed.children.length > 5) feed.removeChild(feed.firstChild);
-            else {feed.appendChild(msg);}
+            feed.appendChild(msg);
+            if (feed.children.length > 5) {
+                feed.removeChild(feed.firstChild);
+            }
+
             setTimeout(() => msg.remove(), 4000);
         });
         socket.on('state', s => {
@@ -305,6 +309,7 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 players[myId].isSpectating = s.players[myId].isSpectating;
                 players[myId].spawnProtected = s.players[myId].spawnProtected;
                 players[myId].stamina = s.players[myId].stamina;
+                players[myId].forcedSpectator = s.players[myId].forcedSpectator;
             }
 
             const all = [...Object.values(players), ...Object.values(bots)].sort((a, b) => b.score - a.score);
@@ -387,6 +392,12 @@ const socket = io({ transports: ['websocket'], upgrade: false });
             box.appendChild(msg);
             setTimeout(() => msg.remove(), 4000);
         });
+
+        socket.on('mapUpdate', d => {
+            mapSize = d.mapSize;
+            walls = d.walls;
+        });
+
 
         socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
         socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; });
@@ -525,12 +536,21 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 return;
             }
 
+            
+
             ctx.setTransform(1, 0, 0, 1, 0, 0);
 
             ctx.fillStyle = "#111";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            const banner = document.getElementById('lateSpectatorBanner');
             const me = players[myId];
+
+            if (me?.forcedSpectator && matchTimer > 0) {
+                banner.style.display = 'block';
+            } else {
+                banner.style.display = 'none';
+            }
             if (!me || !Number.isFinite(me.x) || !Number.isFinite(me.y)) {
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.fillStyle = "#111";

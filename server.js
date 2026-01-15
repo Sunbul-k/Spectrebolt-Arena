@@ -186,7 +186,7 @@ function spawnSpecialBots() {
 }
 
 
-function handleSuccessfulJoin(socket, name) {
+function handleSuccessfulJoin(socket, name, forcedSpectator = false) {
     if (matchTimer <= 0) resetMatch();
     const pos = getSafeSpawn();
     players[socket.id] = {
@@ -194,7 +194,8 @@ function handleSuccessfulJoin(socket, name) {
         name: name,
         x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, stamina: 100,
         angle: 0, color: generateUniqueColor(),
-        isSpectating: false, 
+        isSpectating: forcedSpectator, 
+        forcedSpectator,
         spawnProtectedUntil: Date.now() + 3000,
         lastRegenTime: Date.now(),
         damageTakenMultiplier: 1,
@@ -206,7 +207,7 @@ function handleSuccessfulJoin(socket, name) {
         spawnSpecialBots();
     }
     
-    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX: pos.x, spawnY: pos.y,name});
+    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX: pos.x, spawnY: pos.y,name, forcedSpectator});
 
 }
 
@@ -229,7 +230,7 @@ function resetMatch() {
         const pos = getBotSafeSpawn();
         Object.assign(b, { x: pos.x, y: pos.y, hp: 100, score: 0 , spawnTime:Date.now()});
     });
-    io.emit('init', { id: null, mapSize: MAP_SIZE, walls });
+    io.emit('mapUpdate', { mapSize, walls });
     io.emit('matchReset');
 }
 
@@ -413,18 +414,20 @@ io.on('connection', socket => {
             return;
         }
 
+        let forcedSpectator = false;
+
         if (matchStarted && matchTimer <= JOIN_CUTOFF_SECONDS) {
-            socket.emit('errorMsg', 'Match already in progress. Joining is disabled during final 5 minutes of a match.');
-            return;
+            forcedSpectator = true;
         }
 
-        handleSuccessfulJoin(socket, cleanedName);
+
+        handleSuccessfulJoin(socket, cleanedName, forcedSpectator);
     });
 
     socket.on('input', input => {
         const p = players[socket.id];
         if (!p) return;
-        if (!matchStarted) {
+        if (!matchStarted && !p.isSpectating) {
             matchStarted = true;
             matchTimer = 15 * 60;
         }
@@ -434,7 +437,7 @@ io.on('connection', socket => {
 
     socket.on('fire', data => {
         const p = players[socket.id];
-        if (!p || p.isSpectating || p.lives<=0) return;
+        if (!p || p.isSpectating || p.lives <= 0 || p.forcedSpectator) return;
 
         const now = Date.now();
         if (now - p.lastFireTime < p.fireCooldown) return; // 10 shots/sec
@@ -707,6 +710,7 @@ setInterval(() => {
                 hp: p.hp,
                 angle: p.angle,
                 isSpectating: p.isSpectating,
+                forcedSpectator: p.forcedSpectator,
                 spawnProtected: Date.now() < p.spawnProtectedUntil,
                 stamina: p.stamina,
                 score:p.score,

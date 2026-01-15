@@ -161,6 +161,23 @@ canvas { display: block; }
     100% { opacity: 0; transform: translateX(-30px) scale(0.95); }
 }
 
+#lateSpectatorBanner {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: #0f4;
+    padding: 10px 18px;
+    font-size: 14px;
+    border-bottom: 2px solid #0f4;
+    z-index: 9999;
+    display: none;
+    text-align: center;
+    pointer-events: none;
+}
+
+
         
 #nameScreen, #gameOver {
     position: fixed; 
