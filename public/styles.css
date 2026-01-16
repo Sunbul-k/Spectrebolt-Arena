@@ -237,7 +237,7 @@ canvas { display: block; }
     pointer-events: none; z-index: 10; font-size: 14px;
 }
 #ui { left: 15px; min-width: 160px; }
-#leaderboard {right: 15px; text-align: right; min-width: 140px; pointer-events: auto; max-height: 220px; overflow-y: auto;}
+#leaderboard {right: 15px; text-align: right; min-width: 140px; pointer-events: auto; max-height: 220px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;}
 
 .leaderboard-row {
     display: flex;
@@ -247,10 +247,6 @@ canvas { display: block; }
     padding: 2px 0;
     font-size: 14px;
 }
-
-.leaderboard-row:nth-child(1) .lb-rank { color: gold; }
-.leaderboard-row:nth-child(2) .lb-rank { color: silver; }
-.leaderboard-row:nth-child(3) .lb-rank { color: #d28231; }
 
 
 .lb-rank {

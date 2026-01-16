@@ -233,7 +233,13 @@ window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
 window.addEventListener('mousemove', e => {
     if (!joy.active) {
-        mouseAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
+        const me = players[myId];
+        if (!me) return;
+
+        const mouseX = e.clientX + camX - canvas.width / 2;
+        const mouseY = e.clientY + camY - canvas.height / 2;
+
+        mouseAngle = Math.atan2(mouseY - me.x, mouseX - me.y);
     }
 });
 window.addEventListener('keydown', e => {
@@ -352,12 +358,10 @@ socket.on('state', s => {
         }
 
         const isMe = p.id === myId;
-        const isFirst = p.score === topScore;
         return `
             <div class="leaderboard-row"
                 data-id="${p.id}"
                 style="
-                    ${isFirst ? 'color: gold; font-weight: bold;' : ''}
                     ${isMe ? 'outline: 1px solid #0f4;' : ''}
                 ">
                 <span class="lb-rank">${lastRank}.</span>
@@ -373,13 +377,13 @@ socket.on('state', s => {
 
     if (!leaderboardUserScrolled && myId) {
         const meRow = scoreList.querySelector(`[data-id="${myId}"]`);
-        if (meRow) {
-            meRow.scrollIntoView({
-                block: 'center',
-                behavior: 'smooth'
-            });
+        if (meRow && !meRow.isScrollingIntoView) {
+            meRow.isScrollingIntoView = true;
+            meRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            setTimeout(() => { meRow.isScrollingIntoView = false; }, 400);
         }
-    }   
+    }
+   
 });
 socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
 socket.on('RobSpawned', () => {
