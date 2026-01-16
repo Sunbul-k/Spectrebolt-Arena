@@ -58,18 +58,63 @@ let NET_TICK = NET_TICK_IDLE;
 
 
 
-const BANNED_WORDS = ['fuck', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'ass', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist'];
+const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist','porn','mussolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
+const WORD_ONLY_BANS = ['ass'];
+const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass'&& w !=='badass');
 
-function cleanUsername(name) {
-    if (!name || name.trim().length === 0) return "Sniper";
-    let sanitized = name.trim().slice(0, 14);
-    const leetMap = { '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '@': 'a', '$': 's', '!': 'i', '-': '', '_': '' };
-    const normalized = sanitized.toLowerCase().replace(/[0134578@$!]/g, c => leetMap[c]);
-    if (BANNED_WORDS.some(word => normalized.includes(word))) {
-        return 'Spectre' + Math.floor(1000 + Math.random() * 9000);
-    }
-    return sanitized;
+
+const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','skayyali3','spectres-k','spectre-k','you','player']
+
+
+const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
+const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
+
+
+function validateName(name) {
+    if (typeof name !== 'string') return false;
+    if (!name.trim()) return false;
+
+    const lower = name.toLowerCase();
+
+    // Block links / domains
+    if (URL_SCHEME_REGEX.test(lower)) return false;
+    if (DOMAIN_REGEX.test(lower)) return false;
+
+    // English only, length 1–14
+    if (!/^[A-Za-z0-9 _.-]{1,14}$/.test(name)) return false;
+
+    // Normalize leetspeak
+    const leetMap = { 
+        '0': 'o','1': 'i','3': 'e','4': 'a',
+        '5': 's','7': 't','8': 'b',
+        '@': 'a','$': 's','!': 'i',
+        '-': '','_': '','.': '',
+        '9': 'g','2': 'z'
+    };
+
+    const normalized = lower.split('').map(c => leetMap[c] ?? c).join('').replace(/(.)\1+/g, '$1');
+
+
+    if (RESERVED.some(r => normalized.includes(r))) return false;
+    if (SUBSTRING_BANS.some(w => normalized.includes(w))) return false;
+    if (WORD_ONLY_BANS.some(w => new RegExp(`\\b${w}\\b`).test(normalized))) return false;
+
+    return true;
 }
+
+
+function sanitizeName(name) {
+    if (typeof name !== 'string') return "Sniper";
+
+    let cleaned = name.trim().slice(0, 14).replace(/[^A-Za-z0-9 _-]/g, '');
+
+    if (!cleaned.length) {
+        cleaned = "Spectre" + Math.floor(1000 + Math.random() * 9000);
+    }
+
+    return cleaned;
+}
+
 
 function rectsIntersect(r1, r2, padding = 0) {
     return (r1.x < r2.x + r2.w + padding && r1.x + r1.w + padding > r2.x &&
@@ -402,16 +447,20 @@ bots['bot_bobby'].damageTakenMultiplier = 1.35;
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         const rawName = data.name || "";
-        const cleanedName = cleanUsername(rawName);
-        
-        if (cleanedName.startsWith('Spectre') && cleanedName !== rawName && rawName !== "") {
-            nameAttempts[socket.id] = (nameAttempts[socket.id] || 0) + 1;
-            if (nameAttempts[socket.id] >= MAX_ATTEMPTS) {
+        let finalName = rawName.trim().slice(0, 14);
+
+        if (!validateName(finalName)) {
+            const key = socket.handshake.address + ':' + socket.id.slice(0, 6);
+            nameAttempts[key] = (nameAttempts[key] || 0) + 1;
+
+
+            if (nameAttempts[key] >= MAX_ATTEMPTS) {
                 socket.emit('errorMsg', 'Disconnected for repeated naming violations.');
                 socket.disconnect();
                 return;
             }
-            socket.emit('errorMsg', `Inappropriate name. ${MAX_ATTEMPTS - nameAttempts[socket.id]} attempts remaining.`);
+
+            socket.emit('errorMsg',`Inappropriate name or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements ${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
             return;
         }
         if (Object.keys(players).length >= MAX_PLAYERS) {
@@ -425,8 +474,8 @@ io.on('connection', socket => {
             forcedSpectator = true;
         }
 
-
-        handleSuccessfulJoin(socket, cleanedName, forcedSpectator);
+        finalName = sanitizeName(finalName);
+        handleSuccessfulJoin(socket, finalName, forcedSpectator);
     });
 
     socket.on('input', input => {
@@ -443,6 +492,10 @@ io.on('connection', socket => {
     socket.on('fire', data => {
         const p = players[socket.id];
         if (!p || p.isSpectating || p.lives <= 0 || p.forcedSpectator) return;
+
+        const ownerBullets = Object.values(bullets).filter(b => b.owner === socket.id);
+        if (ownerBullets.length >= 8) return;
+
 
         const now = Date.now();
         if (now - p.lastFireTime < p.fireCooldown) return; // 10 shots/sec
@@ -467,7 +520,7 @@ io.on('connection', socket => {
         const color = players[socket.id]?.color;
 
         delete players[socket.id];
-        delete nameAttempts[socket.id];
+        delete nameAttempts[socket.handshake.address];
 
         if (color) USED_COLORS.delete(color);
 
