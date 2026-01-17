@@ -103,7 +103,7 @@ function validateName(name) {
     if (SUBSTRING_BANS.some(w => baseNormalized.includes(w) || collapsed.includes(w))) return false;
 
     if (WORD_ONLY_BANS.some(w => new RegExp(`\\b${w}\\b`).test(baseNormalized))) return false;
-    
+
     return true;
 }
 
@@ -278,7 +278,7 @@ function resetMatch() {
 
     Object.values(players).forEach(p => {
         const pos = getSafeSpawn();
-        Object.assign(p, { x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, isSpectating: false, lastFireTime: 0 });
+        Object.assign(p, { x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, isSpectating: false,forcedSpectator:false, lastFireTime: 0 });
     });
     Object.values(bots).forEach(b => {
         const pos = getBotSafeSpawn();
@@ -465,7 +465,7 @@ io.on('connection', socket => {
                 return;
             }
 
-            socket.emit('errorMsg',`Inappropriate name or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements ${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
+            socket.emit('errorMsg',`Inappropriate name, or reserved name, or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements ${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
             return;
         }
         if (Object.keys(players).length >= MAX_PLAYERS) {

@@ -391,12 +391,12 @@ socket.on('state', s => {
 
     const top5 = ranked.slice(0, 5).map((p, index) => {
         const isMe = p.id === myId;
-        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${lastRank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
+        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${p.rank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
     }).join('');
 
     const remaining = ranked.slice(5).map((p, index) => {
         const isMe = p.id === myId;
-        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${lastRank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
+        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${p.rank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
     }).join('');
 
     
