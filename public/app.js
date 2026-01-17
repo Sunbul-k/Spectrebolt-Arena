@@ -576,9 +576,7 @@ function renderWinners() {
     const winnerBox = document.getElementById('winnerList');
     if (!winnerBox) return;
 
-    const all = Object.values(leaderboardEntities)
-        .filter(e => e.score > 0)
-        .sort((a, b) => b.score - a.score);
+    const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
 
     if (!all.length) {
         winnerBox.innerHTML = `<div>No winners this round.</div>`;
