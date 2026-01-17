@@ -63,7 +63,7 @@ const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass'&& w !=='badass');
 
 
-const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','spectres-k','spectre-k','you','player']
+const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','spectres-k','spectre-k','you','player','skayyali3']
 
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
@@ -100,7 +100,7 @@ function validateName(name) {
 
 
 
-    if (RESERVED.some(r => baseNormalized.includes(r))) return false;
+    if (RESERVED.includes(baseNormalized) ||RESERVED.includes(collapsed)) return false;
 
     if (SUBSTRING_BANS.some(w => baseNormalized.includes(w) || collapsed.includes(w))) return false;
 

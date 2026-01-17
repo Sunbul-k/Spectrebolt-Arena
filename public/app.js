@@ -119,6 +119,35 @@ canvas.addEventListener('click', () => {
     }
 });
 
+function updateLeaderboardHeight() {
+    const leaderboard = document.getElementById('leaderboard');
+    const top5 = document.getElementById('leaderboardTop5');
+    const scrollDiv = document.getElementById('leaderboardScroll');
+
+    if (!leaderboard || !top5 || !scrollDiv) return;
+
+    const viewportHeight = window.innerHeight;
+
+    // Offset from top of leaderboard to viewport
+    const offsetTop = leaderboard.getBoundingClientRect().top;
+
+    // Bottom padding from screen edge
+    const bottomPadding = 15;
+
+    // Calculate available space for scrollable part
+    const top5Height = top5.offsetHeight;
+    const availableHeight = viewportHeight - offsetTop - bottomPadding - top5Height;
+
+    scrollDiv.style.maxHeight = availableHeight + 'px';
+}
+
+// Call on load and resize
+window.addEventListener('load', updateLeaderboardHeight);
+window.addEventListener('resize', updateLeaderboardHeight);
+window.addEventListener('orientationchange', () => setTimeout(updateLeaderboardHeight, 200));
+
+
+
         
 const joyBase = document.getElementById('moveJoystick');
 const joyKnob = document.getElementById('moveKnob');
@@ -302,8 +331,7 @@ socket.on('state', s => {
 
     // Leaderboard update
     Object.values(s.players).forEach(p => {
-        if (p.forcedSpectator && p.score === 0) return;
-
+        if (p.forcedSpectator) return;
         leaderboardEntities[p.id] = {
             id: p.id,
             name: p.name,
@@ -319,9 +347,6 @@ socket.on('state', s => {
             isBot: true
         };
     });
-
-
-
     
     Object.entries(s.players).forEach(([id, p]) => {
         const prev = players[id] || {};
@@ -350,47 +375,34 @@ socket.on('state', s => {
         players[myId].forcedSpectator = s.players[myId].forcedSpectator;
     }
 
-    const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
-
-    const scoreList = document.getElementById('scoreList');
+    const all = Object.values(leaderboardEntities).filter(e => !players[e.id]?.forcedSpectator) .sort((a, b) => b.score - a.score);
 
     let lastScore = null;
     let lastRank = 0;
-    let topScore = all.length ? all[0].score : null;
 
-    scoreList.innerHTML = all.map((p, index) => {
+
+    const top5 = all.slice(0, 5).map((p, index) => {
         if (p.score !== lastScore) {
             lastRank = index + 1;
             lastScore = p.score;
         }
-
         const isMe = p.id === myId;
-        return `
-            <div class="leaderboard-row"
-                data-id="${p.id}"
-                style="
-                    ${isMe ? 'outline: 1px solid #0f4;' : ''}
-                ">
-                <span class="lb-rank">${lastRank}.</span>
-                <span class="lb-name">${p.name}</span>
-                <span class="lb-score">
-                    ${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}
-                </span>
-            </div>
-        `;}).join('');
+        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${lastRank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
+    }).join('');
 
-
-
-
-    if (!leaderboardUserScrolled && myId) {
-        const meRow = scoreList.querySelector(`[data-id="${myId}"]`);
-        if (meRow && !meRow.isScrollingIntoView) {
-            meRow.isScrollingIntoView = true;
-            meRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            setTimeout(() => { meRow.isScrollingIntoView = false; }, 400);
+    const remaining = all.slice(5).map((p, index) => {
+        if (p.score !== lastScore) {
+            lastRank = index + 6; // +6 because slice(5) starts at rank 6
+            lastScore = p.score;
         }
-    }
-   
+        const isMe = p.id === myId;
+        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${lastRank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
+    }).join('');
+
+    
+    document.getElementById('leaderboardTop5').innerHTML = top5;
+    document.getElementById('leaderboardScroll').innerHTML = remaining;
+
 });
 socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
 socket.on('RobSpawned', () => {
