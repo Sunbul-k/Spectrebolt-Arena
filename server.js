@@ -73,6 +73,7 @@ const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
 function validateName(name) {
     if (typeof name !== 'string') return false;
     if (!name.trim()) return false;
+    if (!/[a-z]/i.test(name)) return false;
 
     const lower = name.toLowerCase();
 
@@ -92,12 +93,19 @@ function validateName(name) {
         '9': 'g','2': 'z'
     };
 
-    const normalized = lower.split('').map(c => leetMap[c] ?? c).join('').replace(/(.)\1+/g, '$1');
+    const baseNormalized = lower.split('').map(c => leetMap[c] ?? c).join('').replace(/[^a-z]/g, '');
+
+    const collapsed = baseNormalized.replace(/(.)\1+/g, '$1');
+  
 
 
-    if (RESERVED.some(r => normalized.includes(r))) return false;
-    if (SUBSTRING_BANS.some(w => normalized.includes(w))) return false;
-    if (WORD_ONLY_BANS.some(w => new RegExp(`\\b${w}\\b`).test(normalized))) return false;
+
+    if (RESERVED.some(r => baseNormalized.includes(r))) return false;
+
+    if (SUBSTRING_BANS.some(w => baseNormalized.includes(w) || collapsed.includes(w))) return false;
+
+    if (WORD_ONLY_BANS.some(w => new RegExp(`\\b${w}\\b`).test(baseNormalized))) return false;
+
 
     return true;
 }
