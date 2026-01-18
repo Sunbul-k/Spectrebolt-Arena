@@ -492,6 +492,7 @@ io.on('connection', socket => {
 
         finalName = sanitizeName(finalName);
         handleSuccessfulJoin(socket, finalName, forcedSpectator);
+        console.log(`${players[socket.id].name} has joined the arena`)
     });
 
     socket.on('input', input => {
@@ -733,24 +734,32 @@ setInterval(() => {
                     target.lastRegenTime = Date.now();
 
                     if (target.hp <= 0) {
+                        if (target.justDied) {
+                            delete bullets[b.id];
+                            break;
+                        }
+
+                        target.justDied = true;
                         const shooter = players[b.owner] || bots[b.owner];
                         const victimName = target.name;
                         const shooterName = shooter ? shooter.name : "The Void";
 
-                        io.emit('killEvent', { shooter: shooterName, victim: victimName });
+                        let pointsAwarded = 0;
 
                         if (shooter) {
-                            hit = true;
                             if (b.owner.toString().includes('bot')) {
-                                if (!target.id.toString().includes('bot')) {
-                                    shooter.score += (b.owner === 'bot_bobby' ? 6 : 3);
-                                }
+                                if (!target.id.toString().includes('bot')) pointsAwarded = b.owner === 'bot_bobby' ? 6 : 3;
                             } else {
-                                if (target.id === 'bot_bobby') shooter.score += 1;
-                                else if (target.id === 'bot_eliminator') shooter.score += 2;
-                                else shooter.score += 3;
+                                if (target.id === 'bot_bobby') pointsAwarded = 1;
+                                else if (target.id === 'bot_eliminator') pointsAwarded = 6;
+                                else pointsAwarded = 3;
                             }
+                            shooter.score += pointsAwarded;
                         }
+
+
+                        io.emit('killEvent', { shooter: shooterName, victim: victimName });
+
 
                         if (!target.id.toString().includes('bot')) {
                             target.lives--;
@@ -787,7 +796,6 @@ setInterval(() => {
                         }
                         
                     }
-
                     if (hit) {delete bullets[b.id]; break;}
                 }
             }
@@ -797,7 +805,7 @@ setInterval(() => {
     if (Date.now() - lastNetSend > NET_TICK) {
         const slimPlayers = {};
         for (const [id, p] of Object.entries(players)) {
-            slimPlayers[id] = {x: p.x,y: p.y,hp: p.hp,angle: p.angle,isSpectating: p.isSpectating,forcedSpectator: p.forcedSpectator,spawnProtected: Date.now() < p.spawnProtectedUntil,stamina: p.stamina,score:p.score,lives:p.lives,color:p.color,name:p.name};
+            slimPlayers[id] = {id,x: p.x,y: p.y,hp: p.hp,angle: p.angle,isSpectating: p.isSpectating,forcedSpectator: p.forcedSpectator,spawnProtected: Date.now() < p.spawnProtectedUntil,stamina: p.stamina,score:p.score,lives:p.lives,color:p.color,name:p.name};
         }
         const slimBots = {};
         for (const [id, b] of Object.entries(bots)) {

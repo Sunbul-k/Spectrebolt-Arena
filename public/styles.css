@@ -50,9 +50,6 @@ body {
     background: #111; 
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
     touch-action: none; user-select: none; -webkit-user-select: none;
-    width: 100vw; 
-    height: 100dvh; 
-    position: fixed;
 }
 #howToPlay {
     position: fixed;
@@ -104,6 +101,36 @@ body {
     font-weight: bold;
     cursor: pointer;
 }
+
+.checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 14px;
+    color: white;
+}
+
+.checkbox-wrapper input {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+    margin: 0;
+    padding: 0;
+
+    width: 16px;
+    height: 16px;
+
+    min-width: 16px;
+    min-height: 16px;
+
+    flex: 0 0 auto;
+}
+
+
+
 
 
 @media screen and (orientation: portrait) {
@@ -217,7 +244,7 @@ canvas { display: block; }
 }
 
 #nameScreen h1 { color: white; font-size: 56px; margin-bottom: 30px; letter-spacing: 5px; }
-#nameScreen input { 
+#nameScreen input[type="text"] { 
     padding: 15px; 
     font-size: 20px; 
     border-radius: 5px; 

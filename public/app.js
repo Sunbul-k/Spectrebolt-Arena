@@ -120,27 +120,18 @@ canvas.addEventListener('click', () => {
 
 function updateLeaderboardHeight() {
     const leaderboard = document.getElementById('leaderboard');
-    const top5 = document.getElementById('leaderboardTop5');
     const scrollDiv = document.getElementById('leaderboardScroll');
 
-    if (!leaderboard || !top5 || !scrollDiv) return;
+    if (!leaderboard || !scrollDiv) return;
 
     const viewportHeight = window.innerHeight;
-
-    // Offset from top of leaderboard to viewport
     const offsetTop = leaderboard.getBoundingClientRect().top;
-
-    // Bottom padding from screen edge
     const bottomPadding = 15;
 
-    // Calculate available space for scrollable part
-    const top5Height = top5.offsetHeight;
-    const availableHeight = viewportHeight - offsetTop - bottomPadding - top5Height;
-
+    const availableHeight = viewportHeight - offsetTop - bottomPadding;
     scrollDiv.style.maxHeight = availableHeight + 'px';
 }
 
-// Call on load and resize
 window.addEventListener('load', updateLeaderboardHeight);
 window.addEventListener('resize', updateLeaderboardHeight);
 window.addEventListener('orientationchange', () => setTimeout(updateLeaderboardHeight, 200));
@@ -328,6 +319,7 @@ socket.on('init', d => {
 
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
+    if (!feed) return;
     const msg = document.createElement('div');
     msg.className='kill-msg';
     msg.innerHTML = `<span style="color:var(--accent)">${data.shooter}</span> killed ${data.victim}`;
@@ -405,19 +397,24 @@ socket.on('state', s => {
     });
 
 
-    const top5 = ranked.slice(0, 5).map((p) => {
+    const html = ranked.map((p, index) => {
         const isMe = p.id === myId;
-        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${p.rank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
-    }).join('');
-
-    const remaining = ranked.slice(5).map((p) => {
-        const isMe = p.id === myId;
-        return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${p.rank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
+        const top5Highlight = index < 5; // first 5 entries
+        return `
+        <div class="leaderboard-row" 
+             data-id="${p.id}" 
+             style="${isMe ? 'outline: 1px solid #0f4;' : ''}; ${top5Highlight ? 'background: rgba(0,255,68,0.05); font-weight: bold;' : ''}">
+            <span class="lb-rank">${p.rank}.</span>
+            <span class="lb-name">${p.name}</span>
+            <span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span>
+        </div>`;
     }).join('');
 
     
-    document.getElementById('leaderboardTop5').innerHTML = top5;
-    document.getElementById('leaderboardScroll').innerHTML = remaining;
+    const leaderboardScroll = document.getElementById('leaderboardScroll');
+    leaderboardScroll.innerHTML = html;
+
+    updateLeaderboardHeight();
 
 });
 socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });

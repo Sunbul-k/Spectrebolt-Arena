@@ -49,13 +49,11 @@
         <h1>SpectreBolt Arena</h1>
         <input type="text" id="nameInput" placeholder="NICKNAME" maxlength="12">
         <button id="startBtn">JOIN ARENA</button>
-        <button style="margin-top:10px;font-size:16px;background:#444;color:white"
-        onclick="openHowTo()">HOW TO PLAY</button>
-        <label style="margin-top:12px; display:flex; align-items:center; gap:8px; font-size:14px;">
+        <button style="margin-top:10px;font-size:16px;background:#444;color:white" onclick="openHowTo()">HOW TO PLAY</button>
+        <label class="checkbox-wrapper">
             <input type="checkbox" id="autoRematchToggle">
-            Auto rematch next rounds (10s before automatic rematch)
+            <span>Auto rematch next rounds (10s before automatic rematch)</span>
         </label>
-
     </div>
     <div id="howToPlay" style="display:none;">
         <div class="howto-box">
@@ -120,7 +118,6 @@
 
     <div id="leaderboard">
         <div style="border-bottom: 1px solid #555; margin-bottom: 5px; padding-bottom: 2px;"><b>LEADERBOARD</b></div>
-        <div id="leaderboardTop5"></div>
         <div id="leaderboardScroll"></div>
     </div>
 
