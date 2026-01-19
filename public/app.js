@@ -146,8 +146,27 @@ autoRematchToggle.addEventListener('change', () => {
     socket.emit('setAutoRematch', enabled);
 });
 
+let autoRematchTimeout = null;
+
+function tryAutoRematch() {
+    const me = players[myId];
+    const autoRematch = localStorage.getItem('autoRematch') !== 'false';
+    if (!autoRematch || !me || me.isSpectating) return;
+
+    if (!autoRematchTimeout) {
+        autoRematchTimeout = setTimeout(() => {
+            socket.emit('joinGame', { name: me?.name || "Sniper" });
+            autoRematchTimeout = null;
+        }, 10000); // 10 seconds
+    }
+}
+
 document.getElementById('rematchBtn').onclick = () => {
-    socket.emit('setAutoRematch', true); // opt-in
+    if (autoRematchTimeout) {
+        clearTimeout(autoRematchTimeout);
+        autoRematchTimeout = null;
+    }
+    socket.emit('joinGame', { name: players[myId].name });
     document.getElementById('gameOver').style.display = 'none';
 };
 
@@ -457,7 +476,16 @@ socket.on('EliminatorRetired', () => {
 });
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
 socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
-socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; leaderboardEntities = {}; });
+socket.on('matchReset', () => {
+    document.getElementById('gameOver').style.display = 'none';
+    leaderboardEntities = {};
+    if (autoRematchTimeout) {
+        clearTimeout(autoRematchTimeout);
+        autoRematchTimeout = null;
+    }
+    tryAutoRematch();
+});
+
 
 setInterval(() => {
     if (!shootJoy.active) return;
@@ -759,13 +787,6 @@ function draw(){
 
         const me = players[myId];
 
-        // Only auto-close / auto-rematch if the player opted in
-        const autoRematch = localStorage.getItem('autoRematch') !== 'false';
-        if (autoRematch && me && !me.isSpectating) {
-            // Respawn automatically after a short delay if desired
-            socket.emit('setAutoRematch', true);
-            return;
-        }
 
         // Otherwise, leave the player on Game Over screen
         ctx.setTransform(1, 0, 0, 1, 0, 0);
