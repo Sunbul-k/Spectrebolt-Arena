@@ -37,14 +37,9 @@ let isRematching = false;
         
 
         
-window.addEventListener('load', () => {
-    const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-    if (isIOS && !isStandalone) {
-        document.getElementById('ios-prompt').style.display = 'block';
-    }
-});
 if ('ontouchstart' in window) {
     document.getElementById('shootJoystick').style.display = 'block';
+    document.getElementById('moveJoystick').style.display='block';
 }
 
 
