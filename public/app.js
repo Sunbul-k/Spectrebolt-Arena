@@ -365,11 +365,13 @@ socket.on('rematchAccepted', (data) => {
     isRematching = false;
     gameOverSince = null;
 
+    matchTimer = data.matchTimer;
+
     const me = players[myId] || {};
     players[myId] = {
         ...me,
-        x: data.x ?? mapSize/2,
-        y: data.y ?? mapSize/2,
+        x: data.x ?? mapSize / 2,
+        y: data.y ?? mapSize / 2,
         hp: 100,
         lives: 3,
         score: 0,
@@ -386,6 +388,7 @@ socket.on('rematchAccepted', (data) => {
     document.getElementById('gameOver').style.display = 'none';
     document.getElementById('gameOverNotice').style.display = 'none';
 });
+
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
     if (!feed) return;
@@ -566,7 +569,7 @@ setInterval(() => {
 }, 1000 / 60);
 setInterval(() => {
     const me = players[myId];
-    if (!me || matchTimer <= 0 || !isRematching) return;
+    if (!me || matchTimer <= 0) return;
 
     const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting;
     let dx = 0, dy = 0;

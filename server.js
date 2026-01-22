@@ -201,12 +201,11 @@ let specialsSpawned = false;
 
 function spawnSpecialBots() {
     if (specialsSpawned) return;
+    delete bots['bot_rob'];
+    delete bots['bot_eliminator'];
     specialsSpawned = true;
 
     setTimeout(() => {
-        delete bots['bot_rob'];
-        delete bots['bot_eliminator'];
-
         if (Math.random() < 0.75) {
             const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
             rob.damageTakenMultiplier = 0.75;
