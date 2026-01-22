@@ -41,6 +41,7 @@ const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
 
 
+let resetPending = false;
 let lastNetSend = 0;
 let lastTickTime = Date.now();
 let players = {};
@@ -50,8 +51,6 @@ let bullets = {};
 let bulletIdCounter = 0;
 let matchTimer = 15 * 60;
 let walls = generateWalls(12);
-let resetScheduled = false;
-let matchStarted = false;
 let botAccumulator = 0;
 let bulletAccumulator = 0; 
 let NET_TICK = NET_TICK_IDLE;
@@ -192,7 +191,7 @@ function generateUniqueColor() {
 }
 
 function shouldRespawnBot(botId) {
-    if (!matchStarted || matchTimer <= 0) return false;
+    if (matchTimer <= 0) return false;
     if (botId === 'bot_rob') return Math.random() < 0.75;
     if (botId === 'bot_eliminator') return Math.random() < 0.5;
     return true; // Bobby always respawns
@@ -244,43 +243,71 @@ function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForR
         input: {moveX: 0,moveY: 0,sprint: false,angle: 0},
         waitingForRematch,
     };
-    if (!matchStarted && !forcedSpectator && !waitingForRematch) {
-        matchStarted = true;
-        matchTimer = 15 * 60;
-        spawnSpecialBots();
-    }
-
     
-    
+    spawnSpecialBots();
     socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX: pos.x, spawnY: pos.y,name, forcedSpectator, waitingForRematch});
 
 }
 
-function resetMatch() {
-    const activePlayers = Object.values(players).filter(p => !p.isSpectating);
-    if (activePlayers.length === 0) {
-        console.log("No active players — skipping match reset");
-        matchTimer = 15 * 60;
-        io.emit('matchReset')
-        return;
+function maybeResetMatch() {
+    if (matchPhase === 'ended' && resetPending) {
+        resetPending = false;
+        resetMatch();
+        return true; // reset happened
     }
+    return false;
+}
 
-    console.log("Match resetting...");
+
+function resetMatch() {
+    if (matchPhase === 'running') return;
+    resetPending=false;
     matchTimer = 15 * 60;
     bullets = {};
     walls = generateWalls(12);
-    matchStarted = activePlayers.length > 0;
     specialsSpawned = false;
     spawnSpecialBots();
     
+    Object.values(players).forEach(p => {
+        if (!p.isSpectating) {
+            const pos = getSafeSpawn();
+            Object.assign(p, {
+                x: pos.x,
+                y: pos.y,
+                hp: 100,
+                stamina: 100,
+                spawnProtectedUntil: Date.now() + 3000,
+                lastRegenTime: Date.now(),
+                isSpectating: false,
+                waitingForRematch: false,
+                forcedSpectator:false,
+                score: 0,
+                input: { moveX: 0, moveY: 0, sprint: false, angle: 0 } 
+            });
+        }
+    });
+
     Object.values(bots).forEach(b => {
         const pos = getBotSafeSpawn();
-        Object.assign(b, { x: pos.x, y: pos.y, hp: 100, score: 0 , spawnTime:Date.now(),justDied:false, retired:false, hitChain:0,recentHits:0,});
+        Object.assign(b, {
+            x: pos.x,
+            y: pos.y,
+            hp: 100,
+            score: 0,
+            spawnTime: Date.now(),
+            justDied: false,
+            retired: false,
+            hitChain: 0,
+            recentHits: 0,
+        });
     });
-    io.emit('mapUpdate', { mapSize:MAP_SIZE, walls });
-    io.emit('matchReset');
-    matchPhase='running';
+
+    io.emit('mapUpdate', { mapSize: MAP_SIZE, walls });
+    matchPhase = 'running';
+    io.emit('matchReset', { matchTimer, matchPhase });
+
 }
+
 
 class Bot {
     constructor(id, name, color, speed, bulletSpeed) {
@@ -471,17 +498,18 @@ io.on('connection', socket => {
         let forcedSpectator = false;
         let waitingForRematch = false;
 
-        // Match fully ended or resetting
-        if (matchPhase !== 'running') {
+        const didReset = maybeResetMatch();
+
+        if (!didReset && matchPhase !== 'running') {
             waitingForRematch = true;
-            forcedSpectator = false; 
+            forcedSpectator = false;
         }
 
-        // Match running but late join
+
         else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
             forcedSpectator = true;
         }
-        console.log('FINAL NAME:', name);
+        
 
         handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
         console.log(`${players[socket.id].name} has joined the arena`)
@@ -527,43 +555,28 @@ io.on('connection', socket => {
         delete nameAttempts[socket.handshake.address];
 
         if (color) USED_COLORS.delete(color);
-
-        if (Object.keys(players).length === 0) {
-            matchStarted = false;
-            resetScheduled = false;
-        }
-
-        if (Object.keys(players).length === 0 && !resetScheduled) {
-            const activePlayers = Object.values(players).filter(p => !p.isSpectating);
-            if (activePlayers.length === 0) {
-                resetScheduled = false; 
-            } else {
-                resetScheduled = true;
-                setTimeout(() => {
-                    resetScheduled = false;
-                    resetMatch();
-                }, 1000);
-            }
-        }
     });
 
     socket.on('rematch', () => {
         const p = players[socket.id];
         if (!p) return;
 
+        const didReset = maybeResetMatch();
+
+
+        if (!didReset && matchPhase === 'running' && !p.isSpectating) {
+            socket.emit('rematchDenied', 'Match already in progress.');
+            return;
+        }
+
+
 
         const pos = getSafeSpawn();
-        Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,stamina: 100,isSpectating: false,forcedSpectator: false,waitingForRematch: false,spawnProtectedUntil: Date.now() + 3000,});
-
-        if (!matchStarted || matchPhase !== 'running') {
-            matchStarted = true;
-            matchTimer = 15 * 60;
-            matchPhase = 'running';
-            resetMatch(); // fully reset the map and bots
-        }
+        Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,stamina: 100,score: 0,isSpectating: false,forcedSpectator: false,waitingForRematch: false,spawnProtectedUntil: Date.now() + 3000,});
 
         socket.emit('rematchAccepted', { x: p.x, y: p.y });
     });
+
 
 
 });
@@ -585,20 +598,16 @@ setInterval(() => {
     const delta = Math.min((now - lastTickTime) / 1000, 0.05);
     lastTickTime = now;
 
-    if (matchStarted && activePlayers) {
+    if (activePlayers) {
         matchTimer = Math.max(0, matchTimer - delta);
     }
 
     if (matchTimer <= 0 && matchPhase === 'running') {
         matchPhase = 'ended';
-
-        setTimeout(() => {
-            if (matchPhase === 'ended') {
-                matchPhase = 'resetting';
-                resetMatch();
-            }
-        }, 10000);
+        resetPending = true;
     }
+
+
 
 
     Object.values(players).forEach(p => {

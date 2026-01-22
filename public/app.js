@@ -525,26 +525,13 @@ socket.on('EliminatorRetired', () => {
 });
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
 socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
+
+
 document.getElementById('rematchBtn').onclick = () => {
-    gameOverSince = null;
+    if (isRematching) return;
     isRematching = true;
 
-    matchTimer = 15*60;           
-    bullets = {};
-    leaderboardEntities = {};               
-    bots = {};                    
-    lastInput = null;
-    lastShootTime = 0;
-    lastSpaceShot = 0;
-    autoRematchCountdown = null;
-    camX = 0;
-    camY = 0;
-
-    document.getElementById('gameOver').style.display = 'none';
-    document.getElementById('gameOverNotice').style.display = 'none';
-
-    const me = players[myId];
-    socket.emit('joinGame', { name: me?.name || "Sniper" });
+    socket.emit('rematch');
 };
 
 
@@ -579,7 +566,7 @@ setInterval(() => {
 }, 1000 / 60);
 setInterval(() => {
     const me = players[myId];
-    if (!me || matchTimer <= 0) return;
+    if (!me || matchTimer <= 0 || !isRematching) return;
 
     const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting;
     let dx = 0, dy = 0;
