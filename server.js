@@ -271,9 +271,11 @@ function resetMatch() {
         if (!p.isSpectating) {
             const pos = getSafeSpawn();
             Object.assign(p, {
+                id:p.id,
                 x: pos.x,
                 y: pos.y,
                 hp: 100,
+                lives:3,
                 stamina: 100,
                 spawnProtectedUntil: Date.now() + 3000,
                 lastRegenTime: Date.now(),
@@ -281,7 +283,11 @@ function resetMatch() {
                 waitingForRematch: false,
                 forcedSpectator:false,
                 score: 0,
-                input: { moveX: 0, moveY: 0, sprint: false, angle: 0 } 
+                input: { moveX: 0, moveY: 0, sprint: false, angle: 0 } ,
+                lastRegenTime: Date.now(),
+                damageTakenMultiplier: 1,
+                lastFireTime: 0,
+                fireCooldown: 100,
             });
         }
     });
@@ -304,7 +310,6 @@ function resetMatch() {
     io.emit('mapUpdate', { mapSize: MAP_SIZE, walls });
     matchPhase = 'running';
     io.emit('matchReset', { matchTimer, matchPhase });
-
 }
 
 
@@ -560,24 +565,19 @@ io.on('connection', socket => {
         const p = players[socket.id];
         if (!p) return;
 
-        const didReset = maybeResetMatch();
-
-
-        if (!didReset && matchPhase === 'running' && !p.isSpectating) {
+        if (matchPhase === 'running' && !p.isSpectating) {
             socket.emit('rematchDenied', 'Match already in progress.');
             return;
         }
 
-
+        if (matchPhase === 'ended' && resetPending) {
+            maybeResetMatch();
+        }
 
         const pos = getSafeSpawn();
-        Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,stamina: 100,score: 0,isSpectating: false,forcedSpectator: false,waitingForRematch: false,spawnProtectedUntil: Date.now() + 3000,});
-
+        Object.assign(p, {x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000});
         socket.emit('rematchAccepted', { x: p.x, y: p.y });
     });
-
-
-
 });
 
 
