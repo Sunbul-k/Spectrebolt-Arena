@@ -12,13 +12,13 @@ const SHOOT_INTERVAL=100;
 const isIOS = navigator.userAgentData? navigator.userAgentData.platform === 'iOS': /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
 const MAX_DIST = 50;
 const DEADZONE = 6;
-const BASE_VIEW_SIZE = 900; // world units visible across smallest screen dimension
+const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
 let rematchCountdownInterval = null;
 let gameOverSince = null;
 let lastMiniUpdate = 0;
-let myId=[];
+let myId=null;
 let mapSize=[];
 let walls = [];
 let players = {};
@@ -38,7 +38,7 @@ let lastShootTime=0;
 let spaceHeld = false;
 let lastSpaceShot = 0;
 let leaderboardEntities = {}; 
-let isRematching = false;
+let rematchRequested = false;
 let isGameOverLocked = false;
         
 function isHandheldLike() {
@@ -366,8 +366,8 @@ socket.on('rematchDenied', (msg) => {
 socket.on('rematchAccepted', (data) => {
     if (data.id !== myId) return;
 
-    isGameOverLocked=false;
-    isRematching = false;
+    isGameOverLocked = false;
+    rematchRequested = false;
     gameOverSince = null;
 
     matchTimer = data.matchTimer;
@@ -407,17 +407,11 @@ socket.on('killEvent', (data) => {
     setTimeout(() => msg.remove(), 4000);
 });
 socket.on('state', s => {
-    if (isGameOverLocked && !isRematching) {
-        return;
-    }
-
     matchTimer = s.matchTimer;
     bullets = s.bullets;
-    // Update active bots visually
     bots = s.bots;
     leaderboardEntities = {};
 
-    // Leaderboard update
     Object.values(s.players).forEach(p => {
         if (p.forcedSpectator) return;
         leaderboardEntities[p.id] = {
@@ -479,7 +473,7 @@ socket.on('state', s => {
 
     const html = ranked.map((p, index) => {
         const isMe = p.id === myId;
-        const top5Highlight = index < 5; // first 5 entries
+        const top5Highlight = index < 5; 
         return `
         <div class="leaderboard-row" 
             data-id="${p.id}" 

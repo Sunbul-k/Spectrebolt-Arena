@@ -26,6 +26,7 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 10000;
 
+const activeRematches = new Set();
 const MAP_SIZE = 2000;
 const TICK_RATE = 1000 / 30;
 const MAX_ATTEMPTS = 5;
@@ -355,6 +356,7 @@ class Bot {
         this.recentHits = 0;
         this.lastHitTime = 0;
         this.hitChain = 0;
+        this.hasFiredWhileRetreating = false;
     }
 
     fireAtPlayers(players) {
@@ -430,24 +432,17 @@ class Bot {
         this.fireAtPlayers(players);
     }
     updateAdvanced(players) {
-        if (Date.now() - this.lastRegenTime > 3000) {
+        const now = Date.now();
+        if (now - this.lastRegenTime > 3000) {
             const regen = this.isRetreating ? 2 : 5;
             this.hp = Math.min(100, this.hp + regen);
-            this.lastRegenTime = Date.now();
-        }
-
-        if (this.isRetreating && Math.random() < 0.02) {
-            this.angle += Math.PI * (0.8 + Math.random() * 0.4);
+            this.lastRegenTime = now;
         }
 
         let moveSpeed = this.speed;
-
-        if (this.id === 'bot_eliminator' && Date.now() - this.lastFireTime < 600) {
-            moveSpeed *= 0.5;
-        }
+        if (this.id === 'bot_eliminator' && now - this.lastFireTime < 600) moveSpeed *= 0.5;
 
         if (this.hp <= 35) this.isRetreating = true;
-
         if (this.isRetreating) {
             moveSpeed *= 1.25;
 
@@ -457,21 +452,46 @@ class Bot {
                     Math.hypot(a.x - this.x, a.y - this.y) <
                     Math.hypot(b.x - this.x, b.y - this.y) ? a : b
                 );
-                this.angle = Math.atan2(this.y - nearest.y, this.x - nearest.x);
+
+                const angleToPlayer = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                this.angle = angleToPlayer + Math.PI;
+
+                const distToPlayer = Math.hypot(nearest.x - this.x, nearest.y - this.y);
+                const angleDiff = Math.abs(this.angle - angleToPlayer);
+                if (!this.hasFiredWhileRetreating && distToPlayer < 400 && angleDiff > Math.PI / 2) {
+                    const id = 'bot_b' + (++bulletIdCounter);
+                    bullets[id] = {
+                        id,
+                        x: this.x,
+                        y: this.y,
+                        angle: angleToPlayer,
+                        owner: this.id,
+                        speed: this.bulletSpeed / 60,
+                        born: now
+                    };
+                    this.hasFiredWhileRetreating = true;
+                }
+            }
+            const lookahead = 40; 
+            let nx = this.x + Math.cos(this.angle) * moveSpeed;
+            let ny = this.y + Math.sin(this.angle) * moveSpeed;
+
+            let attempts = 0;
+            while (collidesWithWall(nx + Math.cos(this.angle) * lookahead, ny + Math.sin(this.angle) * lookahead, ENTITY_RADIUS) && attempts < 6) {
+                this.angle += (Math.random() < 0.5 ? 1 : -1) * Math.PI / 6; 
+                nx = this.x + Math.cos(this.angle) * moveSpeed;
+                ny = this.y + Math.sin(this.angle) * moveSpeed;
+                attempts++;
             }
 
-            const vx = Math.cos(this.angle);
-            const vy = Math.sin(this.angle);
-            const len = Math.hypot(vx, vy) || 1;
+            this.x = nx;
+            this.y = ny;
 
-            let nx = this.x + (vx / len) * moveSpeed;
-            let ny = this.y + (vy / len) * moveSpeed;
+            if (this.hp >= 70) {
+                this.isRetreating = false;
+                this.hasFiredWhileRetreating = false;
+            }
 
-            if (!collidesWithWall(nx, this.y, ENTITY_RADIUS)) this.x = nx;
-            if (!collidesWithWall(this.x, ny, ENTITY_RADIUS)) this.y = ny;
-
-
-            if (this.hp >= 70) this.isRetreating = false;
             return;
         }
 
@@ -483,7 +503,7 @@ class Bot {
         let nx = this.x + (vx / len) * moveSpeed;
         let ny = this.y + (vy / len) * moveSpeed;
 
-        if (!collidesWithWall(nx, ny,ENTITY_RADIUS)) {
+        if (!collidesWithWall(nx, ny, ENTITY_RADIUS)) {
             this.x = nx;
             this.y = ny;
         } else {
@@ -492,6 +512,7 @@ class Bot {
         this.fireAtPlayers(players);
     }
 }
+
 bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
 bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
@@ -557,7 +578,7 @@ io.on('connection', socket => {
 
         const ownerBullets = Object.values(bullets).filter(b => b.owner === socket.id);
         if (ownerBullets.length >= 8) return;
-        if (now - p.lastFireTime < p.fireCooldown) return; // 10 shots/sec
+        if (now - p.lastFireTime < p.fireCooldown) return; 
         p.lastFireTime = now;
 
         if (Object.keys(bullets).length > MAX_BULLETS) return;
@@ -576,9 +597,10 @@ io.on('connection', socket => {
 
     socket.on('disconnect', () => { 
         const color = players[socket.id]?.color;
+        const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
 
         delete players[socket.id];
-        delete nameAttempts[getClientIP(socket)];
+        delete nameAttempts[key];
         delete lastFirePacket[socket.id];
 
         if (color) USED_COLORS.delete(color);
@@ -588,8 +610,12 @@ io.on('connection', socket => {
         const p = players[socket.id];
         if (!p) return;
 
+        if (activeRematches.has(socket.id)) return;
+        activeRematches.add(socket.id);
+
         if (matchPhase === 'running' && !p.isSpectating) {
             socket.emit('rematchDenied', 'Match already in progress.');
+            activeRematches.delete(socket.id);
             return;
         }
 
@@ -600,6 +626,7 @@ io.on('connection', socket => {
         const pos = getSafeSpawn();
         Object.assign(p, {id:socket.id,x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000,lastRegenTime:Date.now(), justDied:false,color:generateUniqueColor()});
         socket.emit('rematchAccepted', {id:p.id, x: p.x, y: p.y, matchTimer, matchPhase,color:p.color });
+        activeRematches.delete(socket.id);
     });
 
 });
@@ -713,7 +740,7 @@ setInterval(() => {
             const liveBots = Object.values(bots).filter(b => !b.retired);
             for (const target of [...livePlayers, ...liveBots]) {
                 if (Math.abs(target.x - b.x) > 40 || Math.abs(target.y - b.y) > 40) continue;
-                if (hit ||target.id === b.owner ||target.isSpectating ||Date.now() < target.spawnProtectedUntil || target.retired || target.hp<=0) continue;
+                if (target.id === b.owner ||target.isSpectating ||Date.now() < target.spawnProtectedUntil || target.retired || target.hp<=0) continue;
 
                 const dx = b.x - target.x;
                 const dy = b.y - target.y;
@@ -721,7 +748,6 @@ setInterval(() => {
 
                 let damage = 10;
                 if (dx * dx + dy * dy < HIT_RADIUS * HIT_RADIUS) {
-                    hit=true;
                     if (target.id === 'bot_rob') {
                         const now = Date.now();
                         if (now - target.lastHitTime < 250) target.hitChain++;
@@ -753,6 +779,8 @@ setInterval(() => {
 
                     target.lastRegenTime = Date.now();
 
+                    delete bullets[b.id]; 
+
                     if (target.hp <= 0) {
                         if (target.justDied) {
                             delete bullets[b.id];
@@ -779,7 +807,6 @@ setInterval(() => {
 
 
                         io.emit('killEvent', { shooter: shooterName, victim: victimName });
-
 
                         if (!target.id.toString().includes('bot')) {
                             target.lives--;
@@ -817,7 +844,6 @@ setInterval(() => {
                         }
                         
                     }
-                    if (hit) {delete bullets[b.id]; break;}
                 }
             }
         });
@@ -840,7 +866,7 @@ setInterval(() => {
         }
 
         io.emit('state', { players:slimPlayers, bots:slimBots, bullets:slimBullets, matchTimer, matchPhase });
-        lastNetSend = Date.now();
+        lastNetSend += NET_TICK;
     }
 }, TICK_RATE);
 
