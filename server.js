@@ -542,7 +542,7 @@ io.on('connection', socket => {
         }
         if (clientId){
             if (clientIdMap[clientId]) {
-                socket.emit('errorMsg', 'You are already connected in another tab/device.');
+                socket.emit('errorMsg', 'You are already connected in another tab.');
                 socket.disconnect();
                 return;
             }

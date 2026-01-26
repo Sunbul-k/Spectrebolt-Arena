@@ -15,6 +15,7 @@ const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 
+let isRematching = false;
 let pbSavedThisMatch = false;
 let rematchCountdownInterval = null;
 let gameOverSince = null;
@@ -158,6 +159,7 @@ window.addEventListener('load', () => {
     resizeCanvas();
 });
 
+let isJoining = false;
         
 window.addEventListener('DOMContentLoaded', () => {
     const startBtn = document.getElementById('startBtn');
@@ -166,14 +168,23 @@ window.addEventListener('DOMContentLoaded', () => {
     startBtn.onclick = async () => {
         await requestFullScreen();
         const name = document.getElementById('nameInput').value;
+        startBtn.disabled = true;
         let clientId = localStorage.getItem('clientId');
         if (!clientId) {
             clientId = 'c_' + Math.random().toString(36).slice(2,10);
             localStorage.setItem('clientId', clientId);
         }
+        isJoining=true;
         socket.emit('joinGame', { name: name || "Sniper", clientId });
         document.getElementById('nameScreen').style.display = 'none';
     };
+});
+
+window.addEventListener('beforeunload', () => {
+    myId = null;
+    players = {};
+    bots = {};
+    bullets = {};
 });
 
 canvas.addEventListener('click', () => {
@@ -347,6 +358,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 socket.on('init', d => {
     if (!d || !d.id) return;
     if (isGameOverLocked && !isRematching) return;
+    isJoining=false;
     pbSavedThisMatch = false;
 
     myId = d.id;
@@ -739,16 +751,12 @@ function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
 
 function draw(){
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (!players || !players[myId]) {
-        ctx.setTransform(1,0,0,1,0,0);
+    if (isJoining || !players[myId]) {
         ctx.fillStyle = "#111";
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = "#f44";
         ctx.font = "20px monospace";
-        ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 400) * 0.2;
-        drawCenteredText(ctx,"Black screen?\nTap here to report a bug ",20);
-
-        ctx.globalAlpha = 1;
+        drawCenteredText(ctx, isJoining ? "Joining game..." : "Black screen?\nTap here to report a bug ", 20);
         return;
     }
 
