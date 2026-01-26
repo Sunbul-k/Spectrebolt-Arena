@@ -437,7 +437,7 @@ class Bot {
 
         this.fireAtPlayers(players);
     }
-    updateAdvanced(players) {
+    updateAdvanced(players, bulletsList={}) {
         const now = Date.now();
         const aggressive = now < this.reengageUntil;
 
@@ -515,7 +515,7 @@ class Bot {
                 }
             }
 
-            if (aggressive && targets.length) {
+            if (!this.isRetreating && aggressive && targets.length) {
                 const target = targets.reduce((a, b) =>
                     Math.hypot(a.x - this.x, a.y - this.y) <
                     Math.hypot(b.x - this.x, b.y - this.y) ? a : b
@@ -536,6 +536,41 @@ class Bot {
                 ny = this.y + Math.sin(this.angle) * moveSpeed;
                 attempts++;
             }
+
+            bulletsList.forEach(b => {
+                const dist = Math.hypot(b.x - this.x, b.y - this.y);
+                if (b.owner !== this.id && dist < 150) {
+                    const futureX = b.x + Math.cos(b.angle) * b.speed * 2;
+                    const futureY = b.y + Math.sin(b.angle) * b.speed * 2;
+
+                    const angleToBullet = Math.atan2(futureY - this.y, futureX - this.x);
+
+                    const dodgeOptions = [
+                        angleToBullet + Math.PI / 2,
+                        angleToBullet - Math.PI / 2  
+                    ];
+
+                    let bestDodge = null;
+                    let maxDist = -Infinity;
+
+                    for (const dodge of dodgeOptions) {
+                        const testX = nx + Math.cos(dodge) * 1.5;
+                        const testY = ny + Math.sin(dodge) * 1.5;
+
+                        if (!collidesWithWall(testX, testY, ENTITY_RADIUS)) {
+                            const futureDist = Math.hypot(futureX - testX, futureY - testY);
+                            if (futureDist > maxDist) {
+                                maxDist = futureDist;
+                                bestDodge = dodge;
+                            }
+                        }
+                    }
+                    if (bestDodge !== null) {
+                        nx += Math.cos(bestDodge) * 1.5;
+                        ny += Math.sin(bestDodge) * 1.5;
+                    }
+                }
+            });
 
             this.x = nx;
             this.y = ny;
@@ -799,7 +834,7 @@ setInterval(() => {
     if (botAccumulator >= 1 / 30) {
         Object.values(bots).forEach(b => {
             if (b.retired) return;
-            if (b.id === 'bot_eliminator') b.updateAdvanced(players);
+            if (b.id === 'bot_eliminator') b.updateAdvanced(players,Object.values.forEach(bullets));
             else b.update(players);
         });
         botAccumulator = 0;
