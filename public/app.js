@@ -42,13 +42,15 @@ let lastSpaceShot = 0;
 let leaderboardEntities = {}; 
 let rematchRequested = false;
 let isGameOverLocked = false;
+let cachedStandalone = null;
+let cachedHandheld = null;
         
 function isHandheldLike() {
     const mq = window.matchMedia;
 
     const coarsePointer = mq('(pointer: coarse)').matches;
-    const finePointer   = mq('(pointer: fine)').matches;
-    const hoverNone     = mq('(hover: none)').matches;
+    const finePointer = mq('(pointer: fine)').matches;
+    const hoverNone = mq('(hover: none)').matches;
 
     const smallScreen = Math.min(window.screen.width, window.screen.height) < 900;
     const hasKeyboard = navigator.keyboard !== undefined || matchMedia('(any-pointer: fine)').matches;
@@ -56,7 +58,6 @@ function isHandheldLike() {
     return (coarsePointer &&!finePointer &&hoverNone &&(smallScreen || !hasKeyboard));
 }
 
-let cachedHandheld = null;
 
 function isHandheldLikeCached() {
     if (cachedHandheld !== null) return cachedHandheld;
@@ -64,14 +65,10 @@ function isHandheldLikeCached() {
     return cachedHandheld;
 }
 
-let cachedStandalone = null;
-
 function isStandaloneModeCached() {
     if (cachedStandalone !== null) return cachedStandalone;
 
-    cachedStandalone =
-        window.navigator.standalone === true ||
-        window.matchMedia('(display-mode: standalone)').matches;
+    cachedStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
 
     return cachedStandalone;
 }
@@ -252,7 +249,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
         }
     }, { passive: false });
 
-
     joyBase.addEventListener('touchend', e => {
         for (const t of e.changedTouches) {
             if (t.identifier !== joy.id) continue;
@@ -309,7 +305,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
         }
     }, { passive: false });
 
-
     shootBase.addEventListener('touchend', e => {
         for (const t of e.changedTouches) {
             if (t.identifier !== shootJoy.id) continue;
@@ -361,7 +356,6 @@ document.addEventListener('visibilitychange', () => {
         socket.disconnect();
     }
 });
-
 
 socket.on('init', d => {
     if (!d || !d.id) return;
@@ -797,7 +791,6 @@ function draw(){
         return;
     }       
             
-
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     ctx.fillStyle = "#111";
@@ -836,11 +829,8 @@ function draw(){
     const rawZoom = Math.min(canvas.width, canvas.height) / BASE_VIEW_SIZE;
     const zoom = Math.max(0.8, Math.min(1.4, rawZoom));
 
-
     ctx.scale(zoom, zoom);
     ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
-
-
 
     ctx.fillStyle = "#006666";
     ctx.fillRect(0, 0, mapSize, mapSize);
@@ -860,7 +850,6 @@ function draw(){
     });
     Object.values(bullets).forEach(b => {
         if (Math.abs(b.x - camX) > canvas.width || Math.abs(b.y - camY) > canvas.height) return;
-
         ctx.beginPath();
         ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
         ctx.fillStyle = "#ff0";

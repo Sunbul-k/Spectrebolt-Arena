@@ -20,7 +20,6 @@ app.use((req, res, next) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-
 const server = http.createServer(app);
 const io = new Server(server);
 
@@ -47,14 +46,12 @@ const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 
 const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass'&& w !=='badass');
 
-
 const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3']
 
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
 
-let resetPending = false;
 let lastNetSend = 0;
 let lastTickTime = Date.now();
 let players = {};
@@ -105,8 +102,7 @@ function validateName(name) {
 
 
 function rectsIntersect(r1, r2, padding = 0) {
-    return (r1.x < r2.x + r2.w + padding && r1.x + r1.w + padding > r2.x &&
-            r1.y < r2.y + r2.h + padding && r1.y + r1.h + padding > r2.y);
+    return (r1.x < r2.x + r2.w + padding && r1.x + r1.w + padding > r2.x && r1.y < r2.y + r2.h + padding && r1.y + r1.h + padding > r2.y);
 }
 
 function getBotSafeSpawn() {
@@ -117,17 +113,7 @@ function getBotSafeSpawn() {
         x = 100 + Math.random() * (MAP_SIZE - 200);
         y = 100 + Math.random() * (MAP_SIZE - 200);
         attempts++;
-    } while (
-        attempts < 100 &&
-        (
-            collidesWithWall(x, y, 40) ||
-            Object.values(players).some(p =>
-                !p.isSpectating &&
-                Math.hypot(p.x - x, p.y - y) < MIN_DIST
-            )
-        )
-    );
-
+    } while (attempts < 100 && (collidesWithWall(x, y, 40) || Object.values(players).some(p =>!p.isSpectating && Math.hypot(p.x - x, p.y - y) < MIN_DIST)));
     return { x, y };
 }
 
@@ -180,6 +166,7 @@ function generateUniqueColor() {
             USED_COLORS.add(color);
             return color;
         }
+
         attempts++;
     }
 
@@ -210,6 +197,7 @@ function spawnSpecialBots() {
             bots['bot_rob'] = rob;
             io.emit('RobSpawned', {id: 'bot_rob', name: 'Rob', timestamp: Date.now()});
         }
+
         if (!specialsSpawned.eliminator && !bots['bot_eliminator'] && Math.random() < 0.25) {
             specialsSpawned.eliminator = true;
             const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
@@ -223,7 +211,6 @@ function spawnSpecialBots() {
 }
 
 app.set('trust proxy', true);
-
 function getClientIP(socket) {
   return socket.handshake.headers['x-forwarded-for']?.split(',')[0] || socket.handshake.address;
 }
@@ -261,18 +248,18 @@ function handleSuccessfulJoin(socket, name, clientId,forcedSpectator = false, wa
 }
 
 function maybeResetMatch() {
-    if (matchPhase === 'ended' && resetPending) {
-        resetPending = false;
+    const hasPlayers = Object.keys(players).length > 0;
+    const anyAlive = Object.values(players).some(p => !p.isSpectating);
+
+    if (!hasPlayers || (matchPhase === 'ended' && !anyAlive)) {
         resetMatch();
-        return true; 
+        return true;
     }
+
     return false;
 }
 
-
 function resetMatch() {
-    if (matchPhase === 'running') return;
-    resetPending=false;
     matchTimer = 15 * 60;
     USED_COLORS.clear()
 
@@ -290,29 +277,27 @@ function resetMatch() {
     spawnSpecialBots();
     
     Object.values(players).forEach(p => {
-        if (!p.isSpectating) {
-            const pos = getSafeSpawn();
-            Object.assign(p, {
-                id:p.id,
-                x: pos.x,
-                y: pos.y,
-                color:generateUniqueColor(),
-                hp: 100,
-                lives:3,
-                stamina: 100,
-                spawnProtectedUntil: Date.now() + 3000,
-                lastRegenTime: Date.now(),
-                isSpectating: false,
-                waitingForRematch: false,
-                forcedSpectator:false,
-                score: 0,
-                input: { moveX: 0, moveY: 0, sprint: false, angle: 0 } ,
-                damageTakenMultiplier: 1,
-                lastFireTime: 0,
-                fireCooldown: 100,
-                justDied:false,
-            });
-        }
+        const pos = getSafeSpawn();
+        Object.assign(p, {
+            id:p.id,
+            x: pos.x,
+            y: pos.y,
+            color:generateUniqueColor(),
+            hp: 100,
+            lives:3,
+            stamina: 100,
+            spawnProtectedUntil: Date.now() + 3000,
+            lastRegenTime: Date.now(),
+            isSpectating: false,
+            waitingForRematch: false,
+            forcedSpectator:false,
+            score: 0,
+            input: { moveX: 0, moveY: 0, sprint: false, angle: 0 } ,
+            damageTakenMultiplier: 1,
+            lastFireTime: 0,
+            fireCooldown: 100,
+            justDied:false,
+        });
     });
 
     Object.values(bots).forEach(b => {
@@ -478,6 +463,7 @@ class Bot {
                     this.hasFiredWhileRetreating = true;
                 }
             }
+
             const lookahead = 40; 
             let nx = this.x + Math.cos(this.angle) * moveSpeed;
             let ny = this.y + Math.sin(this.angle) * moveSpeed;
@@ -531,7 +517,6 @@ io.on('connection', socket => {
             const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
             nameAttempts[key] = (nameAttempts[key] || 0) + 1;
 
-
             if (nameAttempts[key] >= MAX_ATTEMPTS) {
                 socket.emit('errorMsg', 'Disconnected for repeated naming violations.');
                 socket.disconnect();
@@ -552,8 +537,7 @@ io.on('connection', socket => {
                 socket.disconnect();
             }
 
-            clientIdMap[data.clientId] = socket.id;
-    
+            clientIdMap[data.clientId] = socket.id;    
         }    
         if (Object.keys(players).length >= MAX_PLAYERS) {
             socket.emit('errorMsg', 'Match is full.');
@@ -580,14 +564,12 @@ io.on('connection', socket => {
         handleSuccessfulJoin(socket, name, clientId,forcedSpectator, waitingForRematch);
         console.log(`${players[socket.id].name} has joined the arena`)
     });
-
     socket.on('input', input => {
         const p = players[socket.id];
         if (!p || typeof input !== 'object') return;
 
         p.input = {moveX: Math.max(-1, Math.min(1, Number(input.moveX) || 0)),moveY: Math.max(-1, Math.min(1, Number(input.moveY) || 0)),sprint: !!input.sprint,angle: Number.isFinite(input.angle) ? input.angle : p.angle};
     });
-
     socket.on('fire', data => {
         const now = Date.now();
         if (lastFirePacket[socket.id] && now - lastFirePacket[socket.id] < 30) return;
@@ -613,7 +595,6 @@ io.on('connection', socket => {
             born: now
         };
     });
-
     socket.on('disconnect', () => { 
         const color = players[socket.id]?.color;
         const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
@@ -630,7 +611,6 @@ io.on('connection', socket => {
 
         if (color) USED_COLORS.delete(color);
     });
-
     socket.on('rematch', () => {
         const p = players[socket.id];
         if (!p) return;
@@ -644,7 +624,7 @@ io.on('connection', socket => {
             return;
         }
 
-        if (matchPhase === 'ended' && resetPending) {
+        if (matchPhase === 'ended') {
             maybeResetMatch();
         }
 
@@ -653,7 +633,6 @@ io.on('connection', socket => {
         socket.emit('rematchAccepted', {id:p.id, x: p.x, y: p.y, matchTimer, matchPhase,color:p.color });
         activeRematches.delete(socket.id);
     });
-
 });
 
 
@@ -672,24 +651,17 @@ setInterval(() => {
     lastTickTime = now;
 
     const activePlayersArray = Object.values(players).filter(p => !p.isSpectating);
-    NET_TICK = activePlayersArray ? NET_TICK_ACTIVE : NET_TICK_IDLE;
+    NET_TICK = activePlayersArray.length > 0 ? NET_TICK_ACTIVE : NET_TICK_IDLE;
 
     if (activePlayersArray.length === 0) {
-        if (!resetPending && matchPhase === 'running') {
+        if (matchPhase === 'running') {
             console.log("No active players left. Match will reset when someone joins...");
-            resetPending = true;
         }
         if (matchTimer <= 0 && matchPhase !== 'ended') {
             matchPhase = 'ended';
             console.log("Match ended due to timer.");
         }
     } else {
-        resetPending = false;
-
-        if (matchPhase === 'ended') {
-            maybeResetMatch(); 
-        }
-
         NET_TICK = NET_TICK_ACTIVE;
         if (matchPhase === "running") {
             matchTimer = Math.max(0, matchTimer - delta);
