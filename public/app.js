@@ -684,8 +684,13 @@ mapToggle.onclick = () => {
 };
 
 function drawMinimap() {
-    miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+    if (!mapSize || !Number.isFinite(mapSize) || mapSize <= 0) return;
+    if (!miniCanvas.width || !miniCanvas.height) return;
+
     const scale = miniCanvas.width / mapSize;
+    if (!Number.isFinite(scale) || scale <= 0) return;
+
+    miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
     miniCtx.fillStyle = "#444";
     walls.forEach(w => miniCtx.fillRect(w.x * scale, w.y * scale, w.w * scale, w.h * scale));
     Object.values(bots).forEach(b => {
@@ -823,6 +828,8 @@ function draw(){
     const rawZoom = Math.min(canvas.width, canvas.height) / BASE_VIEW_SIZE;
     const zoom = Math.max(0.8, Math.min(1.4, rawZoom));
 
+    if (!Number.isFinite(zoom) || zoom <= 0) return;
+
     ctx.scale(zoom, zoom);
     ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
 
@@ -849,15 +856,12 @@ function draw(){
         ctx.fillStyle = "#ff0";
         ctx.fill();
     });
-
-
     Object.values(bots).forEach(b => {
         if (b.retired) return;
         b.renderX = lerp(b.renderX || b.x, b.x, 0.15);
         b.renderY = lerp(b.renderY || b.y, b.y, 0.15);
         drawEntity({ ...b, x: b.renderX, y: b.renderY }, b.color, b.name, false);
     });
-
     Object.values(players).forEach(p => {
         if (p.id === myId) return;
         p.renderX = lerp(p.renderX || p.x, p.x, 0.15);
@@ -887,7 +891,7 @@ function draw(){
 
         document.getElementById('gameOver').style.display = 'flex';
         renderWinners();
-        drawMinimap();
+        if (mapSize > 0) drawMinimap();
 
         const me = players[myId];
         if (me) {
@@ -915,7 +919,7 @@ function draw(){
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         renderWinners();
-        drawMinimap();
+        if (mapSize > 0) drawMinimap();
 
         const me = players[myId];
         if (me) {
@@ -937,7 +941,7 @@ function draw(){
     }
 
     if (Date.now() - lastMiniUpdate > 200) {
-        drawMinimap();
+        if (mapSize > 0) drawMinimap();
         lastMiniUpdate = Date.now();
     }
 
@@ -968,7 +972,11 @@ document.getElementById('howto-switch').onclick = () => {
 };
 
 function renderLoop() {
-    draw();
+    try {
+        draw();
+    } catch (e) {
+        console.error("Rendering crash:", e);
+    }
     requestAnimationFrame(renderLoop);
 }
 

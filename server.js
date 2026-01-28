@@ -879,7 +879,7 @@ setInterval(() => {
         }
 
         io.emit('state', { players:slimPlayers, bots:slimBots, bullets:slimBullets, matchTimer, matchPhase });
-        lastNetSend += NET_TICK;
+        lastNetSend = Date.now();
     }
 }, TICK_RATE);
 
