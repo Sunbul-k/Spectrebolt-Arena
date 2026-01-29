@@ -359,7 +359,14 @@ window.addEventListener('DOMContentLoaded', ()=>{
 });
 
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
+    const nameScreen = document.getElementById('nameScreen');
+    const gameOverScreen = document.getElementById('gameOver');
+
+    const onNameOrGameOver = 
+        (nameScreen && nameScreen.style.display !== 'none') || 
+        (gameOverScreen && gameOverScreen.style.display !== 'none');
+
+    if (document.hidden && !onNameOrGameOver) {
         if (socket.connected) {
             idleDisconnectReason = 'idle'; 
             idleDisconnectTimer = setTimeout(() => {
@@ -904,7 +911,7 @@ function draw(){
     const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
     document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
 
-    const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator);
+    const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator && p.hp > 0);
 
     if (activePlayers.length === 0 && !isRematching && matchTimer > 0) {
         if (!isGameOverLocked) {
@@ -954,13 +961,6 @@ function draw(){
             }
         }
 
-        if (gameOverSince && Date.now() - gameOverSince > 15000) {
-            const notice = document.getElementById('gameOverNotice');
-            if (notice) {
-                notice.innerText = "Connection stalled. You may safely press REMATCH.";
-                notice.style.display = 'block';
-            }
-        }
         return;
     }
 
