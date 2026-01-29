@@ -184,11 +184,14 @@ window.addEventListener('beforeunload', () => {
     bullets = {};
 });
 
-canvas.addEventListener('click', () => {
+const tryReload = () => {
     if (!players[myId]) {
         location.reload();
     }
-});
+};
+
+canvas.addEventListener('click', tryReload);
+canvas.addEventListener('touchstart', tryReload, { passive: true });
 
 function clampLeaderboardToTop5() {
     const scroll = document.getElementById('leaderboardScroll');
@@ -775,7 +778,7 @@ function draw(){
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = "#f44";
         ctx.font = "20px monospace";
-        drawCenteredText(ctx, isJoining ? "Joining game...\nTap here to refresh." : "Black screen?\nTap here to refresh. ", 20);
+        drawCenteredText(ctx, isJoining ? "Joining game...\nTaking a while? Tap here to refresh. " : "Black screen?\nTap here to refresh. ", 20);
         return;
     }
 
