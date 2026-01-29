@@ -16,6 +16,7 @@ const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
 const IDLE_TIMEOUT = 60_000;
 
+let idleDisconnectReason = null;
 let idleDisconnectTimer = null;
 let isRematching = false;
 let pbSavedThisMatch = false;
@@ -360,6 +361,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
         if (socket.connected) {
+            idleDisconnectReason = 'idle'; 
             idleDisconnectTimer = setTimeout(() => {
                 socket.disconnect();
             }, IDLE_TIMEOUT);
@@ -368,6 +370,7 @@ document.addEventListener('visibilitychange', () => {
         if (idleDisconnectTimer) {
             clearTimeout(idleDisconnectTimer);
             idleDisconnectTimer = null;
+            idleDisconnectReason = null; 
         }
     }
 });
@@ -578,6 +581,11 @@ socket.on('disconnect', (reason) => {
     if (!players[myId]) {
         const nameScreen = document.getElementById('nameScreen');
         if (nameScreen) nameScreen.style.display = 'flex';
+    }
+
+    if (idleDisconnectReason === 'idle') {
+        alert("You were disconnected for being idle too long (over 1 minute).");
+        idleDisconnectReason = null;
     }
 });
 
