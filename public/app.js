@@ -14,11 +14,8 @@ const MAX_DIST = 50;
 const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
-const IDLE_TIMEOUT = 60_000;
 
 let isJoining = false;
-let idleDisconnectReason = null;
-let idleDisconnectTimer = null;
 let isRematching = false;
 let pbSavedThisMatch = false;
 let rematchCountdownInterval = null;
@@ -232,14 +229,8 @@ window.addEventListener('DOMContentLoaded', () => {
             const name = document.getElementById('nameInput').value;
             startBtn.disabled = true;
 
-            let clientId = localStorage.getItem('clientId');
-            if (!clientId) {
-                clientId = 'c_' + Math.random().toString(36).slice(2,10);
-                localStorage.setItem('clientId', clientId);
-            }
-
             isJoining = true;
-            socket.emit('joinGame', { name: name || "Sniper", clientId });
+            socket.emit('joinGame', { name: name || "Sniper" });
             document.getElementById('nameScreen').style.display = 'none';
         };
     }
@@ -294,28 +285,6 @@ const tryReload = () => {if (!players[myId]) location.reload();};
 
 canvas.addEventListener('click', tryReload);
 canvas.addEventListener('touchstart', tryReload, { passive: true });
-
-document.addEventListener('visibilitychange', () => {
-    const nameScreen = document.getElementById('nameScreen');
-    const gameOverScreen = document.getElementById('gameOver');
-
-    const onNameOrGameOver = (nameScreen && nameScreen.style.display !== 'none') || (gameOverScreen && gameOverScreen.style.display !== 'none');
-
-    if (document.hidden && !onNameOrGameOver) {
-        if (socket.connected) {
-            idleDisconnectReason = 'idle'; 
-            idleDisconnectTimer = setTimeout(() => {
-                socket.disconnect();
-            }, IDLE_TIMEOUT);
-        }
-    } else {
-        if (idleDisconnectTimer) {
-            clearTimeout(idleDisconnectTimer);
-            idleDisconnectTimer = null;
-            idleDisconnectReason = null; 
-        }
-    }
-});
 
 socket.on('init', d => {
     if (!d || !d.id) return;
@@ -506,7 +475,12 @@ socket.on('EliminatorRetired', () => {
     setTimeout(() => msg.remove(), 4000);
 });
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
-socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; document.getElementById('startBtn').disabled=false;});
+socket.on('errorMsg', (msg) => { 
+    alert(msg); 
+
+    document.getElementById('nameScreen').style.display = 'flex'; 
+    document.getElementById('startBtn').disabled=false;
+});
 socket.on('disconnect', (reason) => {
     trySavePersonalBest();
     console.warn('Socket disconnected:', reason);
@@ -523,12 +497,6 @@ socket.on('disconnect', (reason) => {
     if (!players[myId]) {
         const nameScreen = document.getElementById('nameScreen');
         if (nameScreen) nameScreen.style.display = 'flex';
-    }
-
-    if (idleDisconnectReason === 'idle') {
-        alert("You were disconnected for being idle too long (over 1 minute).");
-        idleDisconnectReason = null;
-        window.location.reload();
     }
 });
 

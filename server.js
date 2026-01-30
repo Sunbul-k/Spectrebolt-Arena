@@ -39,8 +39,6 @@ const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
-const clientIdMap = {};
-const clientDisconnectCooldown = {};
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
 // - mom/dad/mother/father/sister/brother: harassment & sexual taunts
@@ -221,11 +219,10 @@ function isLeaderboardEligible(p) {
     return !p.forcedSpectator && !p.waitingForRematch;
 }
 
-function handleSuccessfulJoin(socket, name, clientId,forcedSpectator = false, waitingForRematch=false) {
+function handleSuccessfulJoin(socket, name,forcedSpectator = false, waitingForRematch=false) {
     const pos = getSafeSpawn();
     players[socket.id] = {
         id: socket.id,
-        clientId,
         name: name,
         x: pos.x, 
         y: pos.y, 
@@ -519,7 +516,6 @@ class Bot {
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         let name = (data.name || "").trim().slice(0, 14);
-        const clientId= data.clientId
         if (!name || name.toLowerCase() === "sniper") {
             name = "Sniper" + Math.floor(1000 + Math.random() * 9000);
         }
@@ -537,19 +533,7 @@ io.on('connection', socket => {
             socket.emit('errorMsg',`Inappropriate name, or reserved name, or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements \n${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
             return;
         }
-        if (clientId){
-            if (clientIdMap[clientId]) {
-                socket.emit('errorMsg', 'You are already connected in another tab.');
-                socket.disconnect();
-                return;
-            }
-            if(clientDisconnectCooldown[clientId] && Date.now()- clientDisconnectCooldown[clientId] < 3000){
-                socket.emit('errorMsg','Please wait a moment before reconnecting.');
-                socket.disconnect();
-            }
-
-            clientIdMap[data.clientId] = socket.id;    
-        }    
+        
         if (Object.keys(players).length >= MAX_PLAYERS) {
             socket.emit('errorMsg', 'Match is full.');
             return;
@@ -572,7 +556,7 @@ io.on('connection', socket => {
             spawnSpecialBots();
         }
 
-        handleSuccessfulJoin(socket, name, clientId,forcedSpectator, waitingForRematch);
+        handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
         console.log(`${players[socket.id].name} has joined the arena`)
     });
     socket.on('input', input => {
@@ -611,10 +595,6 @@ io.on('connection', socket => {
         const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
 
         const p = players[socket.id];
-        if (p?.clientId && clientIdMap[p.clientId] === socket.id) {
-            delete clientIdMap[p.clientId];
-            clientDisconnectCooldown[p.clientId]=Date.now();
-        }
 
         delete players[socket.id];
         delete nameAttempts[key];
