@@ -41,13 +41,13 @@ const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
-// - mom/dad/mother/father/sister/brother: harassment & sexual taunts
+// - mom/dad/mother/father/sister/brother/baby: harassment & sexual taunts
 // - twin: Twin Towers references
 // - hog: hogtie abuse
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','anus','virgin','suck','blow','tit','oral','rim','69','zinji','zingi','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson','hog','pussy','pussi','twin','9/11','kill','murder','mom','dad','mother','father','sister','brother'];
+const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','anus','virgin','suck','blow','tit','oral','rim','69','zinji','zingi','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','pussi','twin','9/11','kill','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','six','bend','racial','racist','prostitute','prick','orga','orgie','orgi','orge','mastur','masterb','jackass','horny','horni','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
 const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
@@ -71,33 +71,66 @@ let NET_TICK = NET_TICK_IDLE;
 let matchPhase = 'running'; 
 let lastFirePacket = {};
 
+const leetMap = {
+    '0': ['o'], 
+    '1': ['i', 'l'], 
+    '2': ['z','s'], 
+    '3': ['e'], 
+    '4': ['a'], 
+    '5': ['s'], 
+    '6': ['g'], 
+    '7': ['t'], 
+    '8': ['b'], 
+    '9': ['g'], 
+    '@': ['a'], 
+    '$': ['s'], 
+    '!': ['i'], 
+    '+': ['t'],
+    '-': [''], 
+    '_': [''], 
+    '.': ['']
+};
+
+function stripVowels(str) {
+    return str.replace(/[aeiou]/g, '');
+}
+
 function validateName(name) {
     if (typeof name !== 'string') return false;
-    if (!name.trim()) return false;
-    if (!/[a-z]/i.test(name)) return false;
-
     const lower = name.toLowerCase();
+    
+    if (!/^[a-z0-9 _.-]{1,14}$/.test(lower)) return false;
+    if (!/[a-z]/.test(lower)) return false;
 
-    if (URL_SCHEME_REGEX.test(lower)) return false;
-    if (DOMAIN_REGEX.test(lower)) return false;
+    const baseVariants = [lower];
+    const leetKeys = Object.keys(leetMap);
 
-    if (!/^[A-Za-z0-9 _.-]{1,14}$/.test(name)) return false;
+    for (let key of leetKeys) {
+        let newVariants = [];
+        for (let v of baseVariants) {
+            if (v.includes(key)) {
+                for (let rep of leetMap[key]) {
+                    newVariants.push(v.split(key).join(rep));
+                }
+            } else {
+                newVariants.push(v);
+            }
+        }
+        baseVariants.splice(0, baseVariants.length, ...newVariants);
+    }
 
-    const leetMap = { 
-        '0': 'o','1': 'i','3': 'e','4': 'a',
-        '5': 's','7': 't','8': 'b',
-        '@': 'a','$': 's','!': 'i',
-        '-': '','_': '','.': '',
-        '9': 'g','2': 'z','+':'t',
-        '6':'g','|':'i'
-    };
+    const collapsedVariants = baseVariants.map(v => v.replace(/(.)\1+/g, '$1'));
 
-    const baseNormalized = lower.split('').map(c => leetMap[c] ?? c).join('').replace(/[^a-z]/g, '');
-    const collapsed = baseNormalized.replace(/(.)\1+/g, '$1');
+    for (let v of collapsedVariants) {
+        if (RESERVED.includes(v) || SUBSTRING_BANS.some(w => v.includes(w))) return false;
+        if (WORD_ONLY_BANS.includes(v)) return false;
+    }
 
-    if (RESERVED.includes(lower) ||RESERVED.includes(baseNormalized) ||RESERVED.includes(collapsed)) return false;
-    if (SUBSTRING_BANS.some(w => baseNormalized.includes(w) || collapsed.includes(w))) return false;
-    if (WORD_ONLY_BANS.includes(baseNormalized)) return false;
+    const longBans = SUBSTRING_BANS.filter(w => w.length > 3);
+    for (let v of collapsedVariants) {
+        const stripped = stripVowels(v);
+        if (longBans.some(w => stripped.includes(stripVowels(w)))) return false;
+    }
 
     return true;
 }
