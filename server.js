@@ -600,12 +600,10 @@ io.on('connection', socket => {
 
         const didReset = maybeResetMatch();
 
-        if (!didReset && matchPhase !== 'running') {
-            waitingForRematch = true;
-            forcedSpectator = false;
-        } else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
+        if (!didReset && matchPhase === 'running' && matchTimer <= JOIN_CUTOFF_SECONDS) {
             forcedSpectator = true;
         }
+
         if (!Object.keys(players).length && Object.keys(bots).length === 0) {
             bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
             bots['bot_bobby'].damageTakenMultiplier = 1.35;
@@ -675,6 +673,9 @@ io.on('connection', socket => {
             maybeResetMatch();
         }
 
+        p.waitingForRematch = false;
+        p.forcedSpectator = false;
+
         const pos = getSafeSpawn();
         Object.assign(p, {id:socket.id,x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000,lastRegenTime:Date.now(), justDied:false,color:generateUniqueColor()});
         socket.emit('rematchAccepted', {id:p.id, x: p.x, y: p.y, matchTimer, matchPhase,color:p.color });
@@ -701,7 +702,7 @@ setInterval(() => {
     if (activePlayersArray.length === 0) {
         if (matchTimer <= 0 && matchPhase !== 'ended') {
             matchPhase = 'ended';
-            console.log("Match ended due to timer.");
+            console.log("No player is alive anymore. Match ended.");
         }
     } else {
         NET_TICK = NET_TICK_ACTIVE;
@@ -712,6 +713,15 @@ setInterval(() => {
 
     if (matchTimer <= 0 && matchPhase === 'running') {
         matchPhase = 'ended';
+
+        Object.values(players).forEach(p => {
+            if (!p.isSpectating) {
+                p.waitingForRematch = true;
+                p.isSpectating = true;
+            }
+        });
+
+        console.log('Match ended due to timer.')
     }
 
     Object.values(players).forEach(p => {
@@ -916,6 +926,7 @@ setInterval(() => {
     if (Date.now() - lastNetSend > NET_TICK) {
         const slimPlayers = {};
         for (const [id, p] of Object.entries(players)) {
+            if (p.waitingForRematch) continue;
             if (!isLeaderboardEligible(p)) continue;
             slimPlayers[id] = {id,x: p.x,y: p.y,hp: p.hp,angle: p.angle,isSpectating: p.isSpectating,forcedSpectator: p.forcedSpectator,spawnProtected: Date.now() < p.spawnProtectedUntil,stamina: p.stamina,score:p.score,lives:p.lives,color:p.color,name:p.name};
         }
