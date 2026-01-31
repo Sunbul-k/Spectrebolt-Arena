@@ -565,37 +565,22 @@ function drawEntity(p, color, label, isMe) {
     if (p.isSpectating) ctx.globalAlpha = 0.5;
     ctx.translate(p.x, p.y);
     if (p.spawnProtected && !p.isSpectating) {
-        ctx.beginPath(); 
-        ctx.arc(0, 0, 28, 0, Math.PI * 2);
-        ctx.strokeStyle = "#0cf"; 
-        ctx.lineWidth = 3; 
-        ctx.setLineDash([5, 5]); 
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2);
+        ctx.strokeStyle = "#0cf"; ctx.lineWidth = 3; ctx.setLineDash([5, 5]); ctx.stroke();
         ctx.setLineDash([]);
     }
     if (!p.isSpectating) {
-        ctx.fillStyle = "#333"; 
-        ctx.fillRect(-20, -45, 40, 6);
-        ctx.fillStyle = p.hp > 30 ? "#0f4" : "#f22"; 
-        ctx.fillRect(-20, -45, (p.hp/100) * 40, 6);
+        ctx.fillStyle = "#333"; ctx.fillRect(-20, -45, 40, 6);
+        ctx.fillStyle = p.hp > 30 ? "#0f4" : "#f22"; ctx.fillRect(-20, -45, (p.hp/100) * 40, 6);
     }
-    ctx.save(); 
-    ctx.rotate(p.angle);
-    ctx.fillStyle = color; 
-    ctx.strokeStyle = "#000"; 
-    ctx.lineWidth = 3;
-    ctx.fillRect(0, -6, 32, 12); 
-    ctx.strokeRect(0, -6, 32, 12);
+    ctx.save(); ctx.rotate(p.angle);
+    ctx.fillStyle = color; ctx.strokeStyle = "#000"; ctx.lineWidth = 3;
+    ctx.fillRect(0, -6, 32, 12); ctx.strokeRect(0, -6, 32, 12);
     ctx.restore();
-    ctx.beginPath(); 
-    ctx.arc(0, 0, 20, 0, Math.PI*2);
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2);
     ctx.fillStyle = color; ctx.fill();
-    ctx.strokeStyle = isMe ? "#fff" : "#000"; 
-    ctx.lineWidth = isMe ? 4 : 3; ctx.stroke();
-    ctx.fillStyle = "white"; 
-    ctx.globalAlpha = 1; 
-    ctx.font = "bold 14px Arial"; 
-    ctx.textAlign = "center";
+    ctx.strokeStyle = isMe ? "#fff" : "#000"; ctx.lineWidth = isMe ? 4 : 3; ctx.stroke();
+    ctx.fillStyle = "white"; ctx.globalAlpha = 1; ctx.font = "bold 14px Arial"; ctx.textAlign = "center";
     ctx.fillText((p.isSpectating ? "[GHOST] " : "") + label, 0, -55);
     ctx.restore();
 }
@@ -627,12 +612,10 @@ function drawMinimap() {
         miniCtx.arc(b.x * scale, b.y * scale, 3, 0, Math.PI * 2); miniCtx.fill();
     });
     Object.values(players).forEach(p => {
-        if (p.id==myId) return;
-        if (p.waitingForRematch) return;
-        miniCtx.fillStyle = p.isSpectating ? "rgba(255,255,255,0.3)" : "white";
-        miniCtx.beginPath(); 
-        miniCtx.arc(p.x * scale, p.y * scale, 2, 0, Math.PI * 2); 
-        miniCtx.fill();
+        if (p.id !== myId) {
+            miniCtx.fillStyle = p.isSpectating ? "rgba(255,255,255,0.3)" : "white";
+            miniCtx.beginPath(); miniCtx.arc(p.x * scale, p.y * scale, 2, 0, Math.PI * 2); miniCtx.fill();
+        }
     });
     const me = players[myId];
     if (me) {
@@ -796,7 +779,6 @@ function draw(){
     });
     Object.values(players).forEach(p => {
         if (p.id === myId) return;
-        if (p.waitingForRematch) return;
         p.renderX = lerp(p.renderX || p.x, p.x, 0.15);
         p.renderY = lerp(p.renderY || p.y, p.y, 0.15);
         drawEntity({ ...p, x: p.renderX, y: p.renderY }, p.color, p.name, false);
