@@ -18,6 +18,29 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/sitemap.xml', (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    const urls = [
+        { loc: 'https://spectrebolt-arena-9xk4.onrender.com', lastmod: today },
+    ];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    urls.forEach(u => {
+        xml += `  <url>\n`;
+        xml += `    <loc>${u.loc}</loc>\n`;
+        xml += `    <lastmod>${u.lastmod}</lastmod>\n`;
+        xml += `    <priority>1.0</priority>\n`;
+        xml += `  </url>\n`;
+    });
+
+    xml += `</urlset>`;
+
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
