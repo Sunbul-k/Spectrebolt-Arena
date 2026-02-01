@@ -38,7 +38,7 @@ const BULLET_LIFETIME = 1200;
 const MAX_BULLETS=60;
 const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
-const NET_TICK_ACTIVE = 1000 / 20;
+const NET_TICK_ACTIVE = 1000 / 15;
 
 // Note: Some bans are intentionally broad to prevent common abuse patterns:
 // - mom/dad/mother/father/sister/brother/baby: harassment & sexual taunts
@@ -47,7 +47,7 @@ const NET_TICK_ACTIVE = 1000 / 20;
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','six','bend','racial','racist','prostitute','prick','orga','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
+const BANNED_WORDS = ['fuck','ass','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','six','bend','racial','racist','prostitute','prick','orga','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
 const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
@@ -982,7 +982,9 @@ setInterval(() => {
 
         const slimBullets = {};
         for (const [id, b] of Object.entries(bullets)) {
-            slimBullets[id] = {x: b.x,y: b.y,angle: b.angle};
+            if (Object.values(players).some(p =>!p.isSpectating && Math.hypot(p.x - b.x, p.y - b.y) < 900)) {
+                slimBullets[id] = { x: b.x, y: b.y, angle: b.angle };
+            }
         }
 
         io.emit('state', { players:slimPlayers, bots:slimBots, bullets:slimBullets, matchTimer, matchPhase });
